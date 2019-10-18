@@ -1,16 +1,25 @@
 #!/bin/bash
 
-REMOTE_DIR="~/Desktop/t2/"
+WORKDIR="t2"
+REMOTE_DIR="~/Desktop/$WORKDIR"
+
+function setup() {
+    echo "Preparing VM env."
+    ssh -t -q aluno@127.0.0.1 "cd ~/Desktop && mkdir -p t2"
+}
 
 function vmdeploy() {
     # Send files
-    ssh -t aluno@127.0.0.1 "cd $REMOTE_DIR && rm -rf *"
+    echo "Deploying files to $REMOTE_DIR"
+    ssh -t -q aluno@127.0.0.1 "cd $REMOTE_DIR && rm -rf *"
     scp -r * aluno@127.0.0.1:$REMOTE_DIR
 }
 
 function vmrun() {
     CMD="$*"
-    echo "Executing \"$CMD\" on remote machine."
+    echo "Executing \"$CMD\" at $REMOTE_DIR."
     REMOTECMD="cd $REMOTE_DIR && $CMD"
-    ssh -t aluno@127.0.0.1 "$REMOTECMD"
+    ssh -t -q aluno@127.0.0.1 "$REMOTECMD"
 }
+
+setup
