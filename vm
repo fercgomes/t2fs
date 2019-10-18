@@ -1,0 +1,16 @@
+#!/bin/bash
+
+REMOTE_DIR="~/Desktop/t2/"
+
+function vmdeploy() {
+    # Send files
+    ssh -t aluno@127.0.0.1 "cd $REMOTE_DIR && rm -rf *"
+    scp -r * aluno@127.0.0.1:$REMOTE_DIR
+}
+
+function vmrun() {
+    CMD="$*"
+    echo "Executing \"$CMD\" on remote machine."
+    REMOTECMD="cd $REMOTE_DIR && $CMD"
+    ssh -t aluno@127.0.0.1 "$REMOTECMD"
+}
