@@ -5,7 +5,7 @@ REMOTE_DIR="~/Desktop/$WORKDIR"
 
 function setup() {
     echo "Preparing VM env."
-    ssh -t -q aluno@127.0.0.1 "cd ~/Desktop && mkdir -p t2"
+    ssh -t -q aluno@127.0.0.1 "cd ~/Desktop && mkdir -p $WORKDIR"
 }
 
 function vmdeploy() {
