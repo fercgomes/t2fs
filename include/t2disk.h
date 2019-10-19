@@ -54,17 +54,28 @@ struct t2fs_inode {
 	DWORD	reservado;
 };
 
-
+/** Dados do MBR */
+typedef struct {
+	WORD diskVersion;
+	WORD sectorSize;
+	WORD positionPartitionZero;
+	WORD totalNumberPartitions;
+	DWORD partitionZeroFirstBlockAddr;
+	DWORD partitionZeroLastBlockAddr;
+	char partitionZeroName[24];
+	DWORD partitionOneFirstBlockAddr;
+	DWORD partitionOneLastBlockAddr;
+	char partitionOneName[24];
+	DWORD partitionTwoFirstBlockAddr;
+	DWORD partitionTwoLastBlockAddr;
+	char partitionTwoName[24];
+	DWORD partitionThreeFirstBlockAddr;
+	DWORD partitionThreeLastBlockAddr;
+	char partitionThreeName[24];
+	BYTE notUsed[120];
+} MBR;
 
 #pragma pack(pop)
-
-
-
-
-
-
-
-
 
 
 

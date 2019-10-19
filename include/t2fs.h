@@ -3,6 +3,8 @@
 #ifndef __LIBT2FS___
 #define __LIBT2FS___
 
+#include <string.h>
+#include "apidisk.h"
 
 typedef int FILE2;
 
