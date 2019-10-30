@@ -18,7 +18,7 @@ INF UFRGS - Operating Systems 1 Coursework
 ## Implementation plan
 
 #### Always create a test for a function or parts of a function!
-#### Before starting to implement any function, __be sure the description is correct and complete__, and that you understand what it is supposed to be implemented.
+#### Before starting to implement any function, _be sure the description is correct and complete_, and that you understand what it is supposed to be implemented.
 #### Files must be saved in some cases. Keep it in mind, as it may not have been described.
 
 ### TODO
