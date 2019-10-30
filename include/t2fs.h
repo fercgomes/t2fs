@@ -3,8 +3,6 @@
 #ifndef __LIBT2FS___
 #define __LIBT2FS___
 
-#include <string.h>
-#include "apidisk.h"
 
 typedef int FILE2;
 
@@ -12,15 +10,45 @@ typedef unsigned char BYTE;
 typedef unsigned short int WORD;
 typedef unsigned int DWORD;
 
+#define	TYPEVAL_INVALIDO	0x00
+#define	TYPEVAL_REGULAR		0x01
+#define	TYPEVAL_LINK		0x02
+
 #pragma pack(push, 1)
 
-/** Registro com as informações da entrada de diretório, lida com readdir2 */
-#define MAX_FILE_NAME_SIZE 255
-typedef struct {
-    char    name[MAX_FILE_NAME_SIZE+1]; /* Nome do arquivo cuja entrada foi lida do disco      */
-    BYTE    fileType;                   /* Tipo do arquivo: regular (0x01) ou diretório (0x02) */
-    DWORD   fileSize;                   /* Numero de bytes do arquivo                          */
+/** Superbloco  - 19/2 */
+typedef struct t2fs_superbloco {
+	char    id[4];					/** "T2FS" */
+	WORD    version;				/** 0x7E32 */
+	WORD    superblockSize;			/** 1 = Número de blocos ocupados pelo superbloco */
+	WORD	freeBlocksBitmapSize;	/** Número de blocos do bitmap de blocos de dados */
+	WORD	freeInodeBitmapSize;	/** Número de blocos do bitmap de i-nodes */
+	WORD	inodeAreaSize;			/** Número de blocos reservados para os i-nodes */
+	WORD	blockSize;				/** Número de setores que formam um bloco */
+	DWORD	diskSize;				/** Número total de blocos da partição */
+	DWORD	Checksum;				/** Soma dos 5 primeiros inteiros de 32 bits do superbloco */
+} SUPERBLOCK;
+
+
+/** Registro de diretório (entrada de diretório) - 19/2 */
+typedef struct t2fs_record {
+	BYTE    TypeVal;
+	char    name[51];
+	DWORD	Nao_usado[2];
+	DWORD	inodeNumber;
 } DIRENT2;
+
+
+/** i-node - 19/2 */
+typedef struct t2fs_inode {
+	DWORD	blocksFileSize;
+	DWORD	bytesFileSize;
+	DWORD	dataPtr[2];
+	DWORD	singleIndPtr;
+	DWORD	doubleIndPtr;
+	DWORD	RefCounter;
+	DWORD	reservado;
+} INODE2;
 
 #pragma pack(pop)
 
@@ -80,7 +108,7 @@ int umount(void);
 Função: Criar um novo arquivo.
 	O nome desse novo arquivo é aquele informado pelo parâmetro "filename".
 	O contador de posição do arquivo (current pointer) deve ser colocado na posição zero.
-	Caso já exista um arquivo ou diretório com o mesmo nome, a função deverá retornar um erro de criação.
+	Caso já exista um arquivo com o mesmo nome, a função deverá retornar um erro de criação.
 	A função deve retornar o identificador (handle) do arquivo.
 	Esse handle será usado em chamadas posteriores do sistema de arquivo para fins de manipulação do arquivo criado.
 
@@ -164,36 +192,6 @@ int write2 (FILE2 handle, char *buffer, int size);
 
 
 /*-----------------------------------------------------------------------------
-Função:	Função usada para truncar um arquivo.
-	Remove do arquivo todos os bytes a partir da posição atual do contador de posição (CP)
-	Todos os bytes a partir da posição CP (inclusive) serão removidos do arquivo.
-	Após a operação, o arquivo deverá contar com CP bytes e o ponteiro estará no final do arquivo
-
-Entra:	handle -> identificador do arquivo a ser truncado
-
-Saída:	Se a operação foi realizada com sucesso, a função retorna "0" (zero).
-	Em caso de erro, será retornado um valor diferente de zero.
------------------------------------------------------------------------------*/
-int truncate2 (FILE2 handle);
-
-
-/*-----------------------------------------------------------------------------
-Função:	Reposiciona o contador de posições (current pointer) do arquivo identificado por "handle".
-	A nova posição é determinada pelo parâmetro "offset".
-	O parâmetro "offset" corresponde ao deslocamento, em bytes, contados a partir do início do arquivo.
-	Se o valor de "offset" for "-1", o current_pointer deverá ser posicionado no byte seguinte ao final do arquivo,
-		Isso é útil para permitir que novos dados sejam adicionados no final de um arquivo já existente.
-
-Entra:	handle -> identificador do arquivo a ser escrito
-	offset -> deslocamento, em bytes, onde posicionar o "current pointer".
-
-Saída:	Se a operação foi realizada com sucesso, a função retorna "0" (zero).
-		Em caso de erro, será retornado um valor diferente de zero.
------------------------------------------------------------------------------*/
-int seek2 (FILE2 handle, DWORD offset);
-
-
-/*-----------------------------------------------------------------------------
 Função:	Abre o diretório raiz da partição ativa.
 		Se a operação foi realizada com sucesso, 
 		a função deve posicionar o ponteiro de entradas (current entry) na primeira posição válida do diretório.
@@ -210,10 +208,10 @@ int opendir2 (void);
 Função:	Realiza a leitura das entradas do diretório aberto
 		A cada chamada da função é lida a entrada seguinte do diretório
 		Algumas das informações dessas entradas devem ser colocadas no parâmetro "dentry".
-		Após realizada a leitura de uma entrada, o ponteiro de entradas (current entry) deve ser ajustado para a próxima entrada válida, seguinte à última lida.
+		Após realizada a leitura de uma entrada, o ponteiro de entradas (current entry) será ajustado para a  entrada válida seguinte.
 		São considerados erros:
 			(a) qualquer situação que impeça a realização da operação
-			(b) término das entradas válidas do diretório identificado por "handle".
+			(b) término das entradas válidas do diretório aberto.
 
 Entra:	dentry -> estrutura de dados onde a função coloca as informações da entrada lida.
 
@@ -235,7 +233,7 @@ int closedir2 (void);
 
 
 /*-----------------------------------------------------------------------------
-Função:	Cria um link simbólico
+Função:	Cria um link simbólico (soft link)
 
 Entra:	linkname -> nome do link
 		filename -> nome do arquivo apontado pelo link
@@ -243,7 +241,19 @@ Entra:	linkname -> nome do link
 Saída:	Se a operação foi realizada com sucesso, a função retorna "0" (zero).
 	Em caso de erro, será retornado um valor diferente de zero.
 -----------------------------------------------------------------------------*/
-int ln2(char *linkname, char *filename);
+int sln2(char *linkname, char *filename);
+
+
+/*-----------------------------------------------------------------------------
+Função:	Cria um link estrito (hard link)
+
+Entra:	linkname -> nome do link
+		filename -> nome do arquivo apontado pelo link
+
+Saída:	Se a operação foi realizada com sucesso, a função retorna "0" (zero).
+	Em caso de erro, será retornado um valor diferente de zero.
+-----------------------------------------------------------------------------*/
+int hln2(char *linkname, char *filename);
 
 
 
