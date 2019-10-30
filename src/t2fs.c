@@ -83,25 +83,22 @@ int write2 (FILE2 handle, char *buffer, int size) {
 
 /*-----------------------------------------------------------------------------
 Função:	Função que abre um diretório existente no disco.
-<<<<<<< HEAD
-=======
 -----------------------------------------------------------------------------*/
-DIR2 opendir2 (char *pathname) {
+int opendir2 (void) {
 	return -1;
 }
 
 /*-----------------------------------------------------------------------------
 Função:	Função usada para ler as entradas de um diretório.
 -----------------------------------------------------------------------------*/
-int readdir2 (DIR2 handle, DIRENT2 *dentry) {
+int readdir2 (DIRENT2 *dentry) {
 	return -1;
 }
 
 /*-----------------------------------------------------------------------------
 Função:	Função usada para fechar um diretório.
->>>>>>> 34003965f1a482ec1d935361810832b2d0017b8a
 -----------------------------------------------------------------------------*/
-int closedir2 (DIR2 handle) {
+int closedir2 (void) {
 	return -1;
 }
 
@@ -118,23 +115,6 @@ Função:	Função usada para criar um caminho alternativo (hardlink)
 int hln2(char *linkname, char *filename) {
 	return -1;
 }
-
-<<<<<<< HEAD
-/*-----------------------------------------------------------------------------
-Função:	Função usada para criar um caminho alternativo (softlink)
------------------------------------------------------------------------------*/
-int sln2 (char *linkname, char *filename) {
-	return -1;
-}
-
-/*-----------------------------------------------------------------------------
-Função:	Função usada para criar um caminho alternativo (hardlink)
------------------------------------------------------------------------------*/
-int hln2(char *linkname, char *filename) {
-	return -1;
-}
-=======
->>>>>>> 34003965f1a482ec1d935361810832b2d0017b8a
 
 
 
