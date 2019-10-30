@@ -217,7 +217,7 @@ INF UFRGS - Operating Systems 1 Coursework
    0. Check if a partition is mounted and THE Directory is open. (Id 5: this repeats in another function)
    1. Check if the given link name and the file name are valid. (Id 9: this repeats in another function)
    2. Check that a file with the link name doesn't exist. (Id 7: this sequence \[1,2\] repeats in another function)
-   3. Check if the file which the link should point exists.
+   3. Check if the file which the link should point exists and is not a softlink.
    4. Fetch the file i-node ID. Load the i-node.
    5. Create a dentry and add it to THE Directory. **Create a function for this HL dentry creation!**
    6. Increment the file i-node "RefCounter".
