@@ -37,7 +37,7 @@ clean:
 	rm -rf $(LIB_DIR)/*.a $(BIN_DIR)/*.o $(SRC_DIR)/*~ $(SRC_DIR)/*.o $(INC_DIR)/*~ *~
 
 # Compile tests
-tests:
+tests: t2fs
 	$(MAKE) -C $(TEST_DIR)
 	
 pack:

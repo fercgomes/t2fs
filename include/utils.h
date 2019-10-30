@@ -2,6 +2,7 @@
 #define __UTILST2FS___
 
 #include <stdio.h>
+#include <string.h>
 #include "t2disk.h"
 #include "apidisk.h"
 
