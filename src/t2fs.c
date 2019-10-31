@@ -116,5 +116,33 @@ int hln2(char *linkname, char *filename) {
 	return -1;
 }
 
+/*-----------------------------------------------------------------------------
+Função: Carrega o Master Boot Record 
+-----------------------------------------------------------------------------*/
+int load_MBR(MBR* mbr) {
+	BYTE buffer[SECTOR_SIZE];
+	
+	int error = read_sector(0, buffer);
+	
+	if (error) return -1;
+	
+	memcpy((void*)mbr, (void*)buffer, SECTOR_SIZE);
+	
+	return 0;
+}
 
-
+/*-----------------------------------------------------------------------------
+Função: retorna o checksum de 20 bytes.
+-----------------------------------------------------------------------------*/
+unsigned int checksum(BYTE values[20]) {
+	unsigned int val_as_int[5];
+	memcpy((void*)val_as_int, (void*)values, 20);
+	unsigned int checksum = 0;
+	int i;
+	for (i = 0; i < 5; i++){
+		checksum += val_as_int[i];
+	}
+	
+	checksum = ~checksum;
+	return checksum;
+}

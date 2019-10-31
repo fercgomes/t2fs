@@ -2,7 +2,12 @@
 
 #ifndef __LIBT2FS___
 #define __LIBT2FS___
+#include <stdio.h>
+#include <string.h>
 
+#include "t2disk.h"
+
+typedef struct s_mbr MBR;
 
 typedef int FILE2;
 
@@ -255,7 +260,7 @@ Saída:	Se a operação foi realizada com sucesso, a função retorna "0" (zero).
 -----------------------------------------------------------------------------*/
 int hln2(char *linkname, char *filename);
 
-
+int load_MBR(MBR* mbr); // Will be maintained in the header so it may be used by the tests
 
 
 #endif

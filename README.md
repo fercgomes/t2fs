@@ -74,7 +74,7 @@ INF UFRGS - Operating Systems 1 Coursework
       * Returns number of bytes written.
    * Function to write a given number of Blocks provided in a buffer and given a position and a Size "s".
       * Returns number of bytes written.
-   * Checksum
+   * ~Checksum~
        Returns the value of the checksum.
 
 ### 2. How to implement THE Directory? i-node

@@ -1,6 +1,5 @@
 
 #include "t2fs.h"
-#include "utils.h"
 #include <stdio.h>
 
 int main() {
