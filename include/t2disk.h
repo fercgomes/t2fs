@@ -4,6 +4,7 @@
 #define __T2DSIK___
 
 #include "t2fs.h"
+#include "apidisk.h"
 
 typedef int boolean;
 #define false 0
@@ -15,7 +16,7 @@ typedef unsigned int        DWORD;
 #pragma pack(push, 1)
 
 /** Dados do MBR */
-typedef struct {
+typedef struct s_mbr{
 	WORD diskVersion;
 	WORD sectorSize;
 	WORD positionPartitionZero;

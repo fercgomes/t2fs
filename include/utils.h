@@ -6,7 +6,6 @@
 #include "t2disk.h"
 #include "apidisk.h"
 
-int load_MBR(MBR* mbr);
 void print_MBR(MBR mbr);
 
 #endif
