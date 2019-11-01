@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "t2disk.h"
+#include <bitmap2.h>
 #include <apidisk.h>
 
 typedef struct s_mbr MBR;
@@ -19,6 +20,10 @@ typedef unsigned int DWORD;
 #define	TYPEVAL_INVALIDO	0x00
 #define	TYPEVAL_REGULAR		0x01
 #define	TYPEVAL_LINK		0x02
+
+// Bitmap handles
+#define BM_BLOCK 1
+#define BM_INODE 0
 
 #pragma pack(push, 1)
 

@@ -90,11 +90,6 @@ int format2(int partition, int sectors_per_block) {
 		printf("Error at format2: the blocks used for metadata are occupying the whole disk. Aborting.\n");
 		return -1;
 	}
-
-	/*
-	printf("secpart %d\nbsb %d\nfblocksbm %d\nfinodesbm %d\ninodearea %d\nmaxinodes %d\ndisksize %d\n\n",\
-		   part_sectors, blockSizeBytes, freeBlocksBitmapSize, freeInodeBitmapSize, inodeAreaSize, maxInodesPart, diskSize);
-	*/
 	
 	SUPERBLOCK spb;
 	spb.id[0] = 'T';
@@ -131,6 +126,21 @@ int format2(int partition, int sectors_per_block) {
 	memcpy((void*)buffer, (void*)&spb, sizeof(spb));
 	if(write_sector(first_sector, buffer)) {
 		printf("Error at format2: couldn't write superblock to the first sector of the partition. Aborting.\n");
+		return -1;
+	}
+	
+	if (openBitmap2(first_sector)) {
+		printf("Error at format2: couldn't load the bitmaps, but the superblock is already at the disk.\nThe system consistency is at stake. It is recommended to format it again.\n");
+		return -1;
+	}
+	for (i = 0; i < metadata_blocks; i++) {
+		if (setBitmap2 (BM_BLOCK, i, 1)) {
+			printf("Error at format2: couldn't set a bit at the bitmap.\nThe system's consistency is at stake. It is recommended to format it again.\n");
+			return -1;
+		}
+	}
+	if (closeBitmap2()) {
+		printf("Error at format2: the bitmaps could not be closed successfuly.\nThe system consistency is at stake. It is recommended to format it again.\n");
 		return -1;
 	}
 	
