@@ -17,10 +17,16 @@ int create_pwofl_entry(PWOFL_ENTRY* pwofl_entry, SWOFL_ENTRY* swofl_entry);
 int delete_pwofl_entry(PWOFL_ENTRY* entry);
 void print_swofl_list(FILA2 SWOFL);
 void print_pwofl_list(FILA2 PWOFL);
+int find_open_file(BYTE filename[51], SWOFL_ENTRY** capture);
+
+extern SUPERBLOCK* spb;
 extern FILA2* SWOFL;
 extern FILA2* PWOFL;
+extern THEDIR* thedir;
 
 int main() {
+	spb = 0x1;
+	thedir = 0x1;
 	printf("SWOFL creation1: %s\n", swofl_init() ? "NOT OK" : "OK");
 	printf("SWOFL destroy1: %s\n", swofl_destroy() ? "NOT OK" : "OK");
 	printf("PWOFL creation1: %s\n", pwofl_init() ? "NOT OK" : "OK");
@@ -34,7 +40,7 @@ int main() {
 	PWOFL_ENTRY* pwofl_entry[5];
 	
 	int nodetobedeleted = 3;
-	
+	char namefortest[51] = "NAMEFORTEST";
 	int i;
 	for (i = 0; i < 5; i++) {
 		fakedir[i] = malloc(sizeof(DIRENT2));
@@ -42,10 +48,21 @@ int main() {
 		pwofl_entry[i] = malloc(sizeof(PWOFL_ENTRY));
 		printf("\tCreating swofl entry %d: %s\n", i, create_swofl_entry(swofl_entry[i], fakedir[i]) ? "NOT OK" : "OK");
 		printf("\tCreating pwofl entry %d: %s\n", i, create_pwofl_entry(pwofl_entry[i], swofl_entry[i]) ? "NOT OK" : "OK");
+		
+		if (i == nodetobedeleted)
+			memcpy(fakedir[i]->name, namefortest, 51);
 	}
 	
 	print_swofl_list(*SWOFL);
 	print_pwofl_list(*PWOFL);
+	
+	SWOFL_ENTRY* dummy_swofl_entry;
+	int search_res = find_open_file(namefortest, &dummy_swofl_entry);
+	printf("\n====== SEARCHING FOR \"%s\" FILE: %s\n", namefortest, search_res ? "NOT OK" : "OK");
+	if (!search_res) {
+		printf("\t====== FOUND:\n");
+		print_swofl_entry(dummy_swofl_entry);
+	}
 	
 	printf("\n====== Deleting entries at %d: %s\n\n", nodetobedeleted, delete_pwofl_entry(pwofl_entry[nodetobedeleted]) ? "NOT OK" : "OK");
 

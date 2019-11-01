@@ -39,7 +39,7 @@ void print_superblock(SUPERBLOCK spb) {
 
 void print_swofl_entry(SWOFL_ENTRY* entry) {
 	printf("--- Imprimindo SWOFL ENTRY ---\n");
-	printf("dir_entry: %08x\n", (unsigned int) entry->dir_entry);
+	printf("dir_entry name: %s\n", entry->dir_entry->name);
 	printf("refs: %d\n", entry->refs);
 	printf("swofl_container: %08x\n", (unsigned int) entry->swofl_container);
 	printf("---------------------\n");

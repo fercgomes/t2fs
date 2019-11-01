@@ -98,25 +98,23 @@ INF UFRGS - Operating Systems 1 Coursework
       * Returns the next available ID to describe the PWOFL file entry.
    * ~Check if a given filename is valid~  
       * Return zero is it is valid, non-zero otherwise.
+   * ~Discover and retrieves a open file by its filename~  
+      * Returns zero if found an open file with the given filename, non-zero otherwise.
 
 ### 2. How to implement THE Directory? i-node
  
-### 3. Mount:
+### 3. ~Mount:~  
    1. See if there isn't any mounted partition. Only mount if the root is free to go. (Id 6: this repeats in another function)
    2. Read Superblock to RAM.
    3. Verify Checksum.
-   4. Load THE Directory i-node and initialize THEDIR struct.
-   5. Initialize System-Wide Open File List (probably use the list API of the first assignment).
-   6. Initialize Process-Wide Open File List.
-   7. Return Success.
+   4. Return Success.
 
-### 4. Umount:
+### 4. ~Umount:~  
    0. Check if a partition is mounted. (Id 6: this repeats in another function)
    1. Check that no files are open, including THE Directory.
-   2. Close THE Directory.
-   3. Deallocate Open File Lists.
-   4. Deallocate Superblock.
-   5. Return Success.
+   2. ~Close THE Directory.~ Do not let unmount if directory is open.
+   3. Deallocate Superblock.
+   4. Return Success.
    
 ### 5. Identify: just do it.
 
@@ -205,7 +203,10 @@ INF UFRGS - Operating Systems 1 Coursework
 ### 12. Opendir2:
    0. Only continues if a partition is mounted and THE Directory isn't already open.
    1. Create a (**the only**) structure for consulting THE Directory. Current Entry points to the first entry in THE Directory.
-   2. Return Success.
+   2. Load THE Directory i-node and initialize THEDIR struct.
+   3. Initialize System-Wide Open File List (probably use the list API of the first assignment).
+   4. Initialize Process-Wide Open File List.
+   5. Return Success.
    
 ### 13. Readdir2:
    0. Check if a partition is mounted and THE Directory is already open. (Id 5: this repeats in another function)
@@ -218,7 +219,8 @@ INF UFRGS - Operating Systems 1 Coursework
    0. Check if a partition is mounted and THE Directory is open. (Id 5: this repeats in another function)
    1. Check if there are no open files.
    2. Close THE Directory.
-   3. Return Success.
+   3. Deallocate Open File Lists.
+   4. Return Success.
    
 ### 15: sln2:
    0. Check if a partition is mounted and THE Directory is open. (Id 5: this repeats in another function)
