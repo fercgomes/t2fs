@@ -2,6 +2,8 @@
 #include "t2fs.h"
 #include <stdio.h>
 
+unsigned int checksum(BYTE values[20]);
+
 int main() {
 	int vals[5] = {5, 30, 21, -20, 2};	
 	

@@ -31,7 +31,7 @@ t2fs: $(OBJECTS)
 
 # Generic rules
 %.o: %.c $(HEADERS)
-	$(CC) $(CFLAGS) -I$(INC_DIR) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(INC_DIR) -c $< -o $@ -Wall
 	
 clean:
 	rm -rf $(LIB_DIR)/*.a $(BIN_DIR)/*.o $(SRC_DIR)/*~ $(SRC_DIR)/*.o $(INC_DIR)/*~ *~

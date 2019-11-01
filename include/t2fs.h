@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "t2disk.h"
+#include <apidisk.h>
 
 typedef struct s_mbr MBR;
 
@@ -260,7 +261,9 @@ Saída:	Se a operação foi realizada com sucesso, a função retorna "0" (zero).
 -----------------------------------------------------------------------------*/
 int hln2(char *linkname, char *filename);
 
-int load_MBR(MBR* mbr); // Will be maintained in the header so it may be used by the tests
+/*------------------------------- FIM DA API --------------------------------*/ 
+
+
 
 
 #endif

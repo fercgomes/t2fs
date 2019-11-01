@@ -2,6 +2,9 @@
 #include "t2fs.h"
 #include <stdio.h>
 
+int load_MBR(MBR* mbr);
+void print_MBR(MBR mbr);
+
 int main() {
 	MBR mbr;
 	
