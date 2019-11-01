@@ -3,7 +3,6 @@
 #ifndef __T2DSIK___
 #define __T2DSIK___
 
-#include "t2fs.h"
 #include "apidisk.h"
 
 typedef int boolean;
@@ -21,22 +20,23 @@ typedef struct s_mbr{
 	WORD sectorSize;
 	WORD positionPartitionZero;
 	WORD totalNumberPartitions;
-	DWORD partitionZeroFirstBlockAddr;
-	DWORD partitionZeroLastBlockAddr;
+	DWORD partitionZeroFirstSectorAddr;
+	DWORD partitionZeroLastSectorAddr;
 	char partitionZeroName[24];
-	DWORD partitionOneFirstBlockAddr;
-	DWORD partitionOneLastBlockAddr;
+	DWORD partitionOneFirstSectorAddr;
+	DWORD partitionOneLastSectorAddr;
 	char partitionOneName[24];
-	DWORD partitionTwoFirstBlockAddr;
-	DWORD partitionTwoLastBlockAddr;
+	DWORD partitionTwoFirstSectorAddr;
+	DWORD partitionTwoLastSectorAddr;
 	char partitionTwoName[24];
-	DWORD partitionThreeFirstBlockAddr;
-	DWORD partitionThreeLastBlockAddr;
+	DWORD partitionThreeFirstSectorAddr;
+	DWORD partitionThreeLastSectorAddr;
 	char partitionThreeName[24];
 	BYTE notUsed[120];
 } MBR;
 
 #pragma pack(pop)
+
 
 
 
