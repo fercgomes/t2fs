@@ -270,6 +270,10 @@ int hln2(char *linkname, char *filename);
 
 /*------------------------------- FIM DA API --------------------------------*/ 
 
+typedef struct s_thedir {
+	INODE2 inode;
+	unsigned int current_entry;
+} THEDIR;
 
 typedef struct s_swofl_entry {
 	DIRENT2* dir_entry;

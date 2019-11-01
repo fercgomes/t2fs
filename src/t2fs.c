@@ -4,9 +4,7 @@
 #include "t2fs.h"
 
 /*---------------- ESTRUTURAS USADAS NO SISTEMA -----------*/
-typedef struct s_thedir {
-	unsigned int current_entry;
-} THEDIR;
+typedef struct s_thedir THEDIR;
 
 typedef struct s_swofl_entry SWOFL_ENTRY;
 
@@ -14,7 +12,7 @@ static unsigned int pwofl_id = 0;
 typedef struct s_pwofl_entry PWOFL_ENTRY;
 
 SUPERBLOCK* spb = NULL;	// Open Superblock
-THEDIR* dir = NULL;  	// Open directory
+THEDIR* thedir = NULL;  	// Open directory
 FILA2* SWOFL = NULL;  	// System Wide Open File List
 FILA2* PWOFL = NULL;		// Process Wide Open File List
 
@@ -22,8 +20,8 @@ FILA2* PWOFL = NULL;		// Process Wide Open File List
 
 unsigned int checksum(BYTE values[20]);
 int load_MBR(MBR* mbr);
-int load_superblock(int partition, SUPERBLOCK* spb);
-int is_superblock(SUPERBLOCK spb);
+int load_superblock(int partition, SUPERBLOCK* spb); 
+int is_superblock(SUPERBLOCK spb); // Retorna zero se falso, outro número se verdadeiro.
 int is_mounted();
 int is_dir_open();
 
@@ -37,9 +35,10 @@ int remove_node_swofl(NODE2* node); // Remove um nodo da lista SWOFL (NAO USAR M
 int create_pwofl_entry(PWOFL_ENTRY* pwofl_entry, SWOFL_ENTRY* swofl_entry); // Cria uma entrada para a PWOFL - Usada para abrir arquivo
 int delete_pwofl_entry(PWOFL_ENTRY* entry); // Remove uma entrada da PWOFL - e remove da lista - Usada para fechar arquivo
 int remove_node_pwofl(NODE2* node); // Remove um nodo da lista PWOFL (NAO USAR MANUALMENTE)
-unsigned int generate_file_id();
+unsigned int generate_file_id(); // Gera um id para arquivo aberto (que a princípio nem vai ser usado, pelo jeito)
 
-int filename(BYTE filename_out[51], BYTE* filename_in);
+int filename(BYTE filename_out[51], BYTE* filename_in); // Verifica se o filename_in está ok e, se sim, copia para filename_out e retorna zero. Retorna -1 se inválido
+int find_open_file(BYTE filename[51], SWOFL_ENTRY** capture); // Encontra um arquivo aberto com o dado nome. Espera um nome válido - Usada para abrir arquivo e testar se arquivo está aberto
 
 /*------------------ FORWARD DECLARATIONS --------*/
 void print_superblock(SUPERBLOCK spb);  // Defined at utils.h
@@ -183,14 +182,46 @@ int format2(int partition, int sectors_per_block) {
 Função:	Monta a partição indicada por "partition" no diretório raiz
 -----------------------------------------------------------------------------*/
 int mount(int partition) {
-	return -1;
+	if(is_mounted()) {
+		printf("A partition is already mounted. Unmount it to proceed.\n");
+		return -1;
+	}
+	
+	spb = (SUPERBLOCK*) malloc(sizeof(SUPERBLOCK));
+	
+	if (load_superblock(partition, spb)) {
+		printf("Couldn't load the superblock of the given partition\nBe sure that you provided a partition id belonging to 1, 2, 3 or 4.\n");
+		free(spb);
+		spb = NULL;
+		return -1;
+	}
+	
+	if (!is_superblock(*spb)) {
+		printf("The given partition has not been formatted yet.\nFormat it to use it.\n");
+		free(spb);
+		spb = NULL;
+		return -1;
+	}
+	return 0;
 }
 
 /*-----------------------------------------------------------------------------
 Função:	Desmonta a partição atualmente montada, liberando o ponto de montagem.
 -----------------------------------------------------------------------------*/
 int unmount(void) {
-	return -1;
+	if (!is_mounted()) {
+		printf("No partition to unmount.\n");
+		return -1;
+	}
+	
+	if (is_dir_open()) {
+		printf("Close the directory before unmounting.\n");
+		return -1;
+	}
+	
+	free(spb);
+	spb = NULL;
+	return 0;
 }
 
 /*-----------------------------------------------------------------------------
@@ -356,11 +387,11 @@ int is_superblock(SUPERBLOCK spb) {
 }
 
 int is_mounted() {
-	return !spb;
+	return (int) spb;
 }
 
 int is_dir_open() {
-	return is_mounted() && !dir;
+	return is_mounted() && thedir;
 }
 
 int write_block(unsigned int blockId) {
@@ -583,4 +614,18 @@ int filename(BYTE filename_out[51], BYTE* filename_in) {
 	memcpy((void*)filename_out, (void*)filename_buffer, 51);
 	
 	return 0;
+}
+
+int find_open_file(BYTE filename[51], SWOFL_ENTRY** capture) { // Expects an already validated filename
+	SWOFL_ENTRY* entry;
+	if (!FirstFila2(SWOFL))
+		do {
+			entry = (SWOFL_ENTRY*) GetAtIteratorFila2(SWOFL);
+			if (strcmp((const char*)filename, entry->dir_entry->name) == 0) {
+				*capture = entry;
+				return 0;
+			}
+		} while (NextFila2(SWOFL) == 0);
+	
+	return -1;
 }
