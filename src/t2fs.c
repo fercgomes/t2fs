@@ -3,26 +3,47 @@
 */
 #include "t2fs.h"
 
+/*---------------- ESTRUTURAS USADAS NO SISTEMA -----------*/
+typedef struct s_thedir {
+	unsigned int current_entry;
+} THEDIR;
+
+typedef struct s_swofl_entry SWOFL_ENTRY;
+
+static unsigned int pwofl_id = 0;
+typedef struct s_pwofl_entry PWOFL_ENTRY;
+
+SUPERBLOCK* spb = NULL;	// Open Superblock
+THEDIR* dir = NULL;  	// Open directory
+FILA2* SWOFL = NULL;  	// System Wide Open File List
+FILA2* PWOFL = NULL;		// Process Wide Open File List
+
 /*------------------ FUNÇÕES FORA DA API -----------------*/
 
 unsigned int checksum(BYTE values[20]);
 int load_MBR(MBR* mbr);
 int load_superblock(int partition, SUPERBLOCK* spb);
 int is_superblock(SUPERBLOCK spb);
+int is_mounted();
+int is_dir_open();
+
+int swofl_init(); // Inicializa a system wide open file list - Usada na opendir
+int swofl_destroy(); // Destroi a SWOFL - Usada na closedir !!!NAO GARANTE QUE OS ARQUIVOS FORAM SALVOS. TODA ESCRITA DEVE SER REALIZADA POR CREATE/WRITE, NAO AQUI
+int pwofl_init(); // Inicializa a process wide open file list - Usada na opendir
+int pwofl_destroy(); // Destroi a PWOFL - Usada na closedir !!!NAO GARANTE QUE OS ARQUIVOS FORAM SALVOS. TODA ESCRITA DEVE SER REALIZADA POR CREATE/WRITE, NAO AQUI
+int create_swofl_entry(SWOFL_ENTRY* swofl_entry, DIRENT2* dir_entry); // Cria uma entrada para a SWOFL - e adiciona na lista (NAO USAR MANUALMENTE)
+int delete_swofl_entry(SWOFL_ENTRY* entry); // Remove uma entrada da SWOFL - e remove da lista (NAO USAR MANUALMENTE)
+int remove_node_swofl(NODE2* node); // Remove um nodo da lista SWOFL (NAO USAR MANUALMENTE)
+int create_pwofl_entry(PWOFL_ENTRY* pwofl_entry, SWOFL_ENTRY* swofl_entry); // Cria uma entrada para a PWOFL - Usada para abrir arquivo
+int delete_pwofl_entry(PWOFL_ENTRY* entry); // Remove uma entrada da PWOFL - e remove da lista - Usada para fechar arquivo
+int remove_node_pwofl(NODE2* node); // Remove um nodo da lista PWOFL (NAO USAR MANUALMENTE)
+unsigned int generate_file_id();
+
+int filename(BYTE filename_out[51], BYTE* filename_in);
 
 /*------------------ FORWARD DECLARATIONS --------*/
 void print_superblock(SUPERBLOCK spb);  // Defined at utils.h
 
-/*--------------------------- API -------------------------*/
-
-/*---------------- ESTRUTURAS USADAS NA API -----------*/
-typedef struct s_thedir {
-	unsigned int current_entry;
-	unsigned int last_entry; // maybe not necessary, since this information will be at the inode
-} THEDIR;
-
-SUPERBLOCK* spb = NULL;
-THEDIR* dir = NULL;
 
 /*--------------------- FUNÇÕES DA API ----------------*/
 
@@ -324,7 +345,232 @@ int is_superblock(SUPERBLOCK spb) {
 	return spb.Checksum == checksum_v;
 }
 
+int is_mounted() {
+	return !spb;
+}
+
+int is_dir_open() {
+	return is_mounted() && !dir;
+}
+
 int write_block(unsigned int blockId) {
 	//partition must be mounted, since we need the initial block position of the partition
 	return -1;
+}
+
+int swofl_init() {
+	if (SWOFL)
+		return -1;
+	
+	SWOFL = malloc(sizeof(FILA2));
+	if (CreateFila2(SWOFL)) {
+		SWOFL = NULL;
+		return -1;
+	}
+	return 0;
+}
+
+int swofl_destroy() {
+	if (!SWOFL)
+		return -1;
+	
+	if (SWOFL->first) // Not empty
+		if (FirstFila2(SWOFL)) // Couldn't put at the first position
+			return -1;
+			
+	SWOFL_ENTRY* entry = NULL;
+	while (!FirstFila2(SWOFL)) {
+		entry = (SWOFL_ENTRY*) GetAtIteratorFila2(PWOFL);
+		if(delete_swofl_entry(entry))
+			return -1;
+	}
+	
+	free(SWOFL);
+	SWOFL = NULL;
+	return 0;
+}
+
+int pwofl_init() {
+	if (PWOFL)
+		return -1;
+	
+	PWOFL = malloc(sizeof(FILA2));
+	if (CreateFila2(PWOFL)) {
+		PWOFL = NULL;
+		return -1;
+	}
+	return 0;
+}
+
+int pwofl_destroy() {
+	if (!PWOFL)
+		return -1;
+	
+	if (PWOFL->first) // Not empty
+		if (FirstFila2(PWOFL)) // Couldn't put at the first position
+			return -1;
+		
+	PWOFL_ENTRY* entry = NULL;
+	while (!FirstFila2(PWOFL)) {
+		entry = (PWOFL_ENTRY*) GetAtIteratorFila2(PWOFL);
+		if(delete_pwofl_entry(entry))
+			return -1;
+	}
+	
+	free(PWOFL);
+	PWOFL = NULL;
+	return 0;
+}
+
+int create_swofl_entry(SWOFL_ENTRY* swofl_entry, DIRENT2* dir_entry) {
+	if (!is_dir_open() || !dir_entry || !swofl_entry)
+		return -1;
+	
+	swofl_entry->dir_entry = dir_entry;
+	swofl_entry->refs = 0;
+	
+	if(AppendFila2(SWOFL, (void*)swofl_entry)) {
+		return -1;
+	}
+	swofl_entry->swofl_container = SWOFL->last;
+	return 0;
+}
+
+int delete_swofl_entry(SWOFL_ENTRY* entry) {
+	if (!entry || !is_dir_open())
+		return -1;
+	
+	if (entry->refs > 0)
+		return -1;
+	
+	free(entry->dir_entry);
+	if (remove_node_swofl(entry->swofl_container))
+		return -1;
+		
+	free(entry);
+	entry = NULL;
+	return 0;
+}
+
+int remove_node_swofl(NODE2* node) {
+	if (!node)
+		return -1;
+	
+	if (!node->ant) {
+		SWOFL->first = node->next;
+		if (node->next)
+			node->next->ant = NULL;
+	} else if (!node->next) {
+		node->ant->next = NULL;
+		SWOFL->last = node->ant;
+	} else {
+		node->ant->next = node->next;
+		node->next->ant = node->ant;
+	}
+	
+	node->node = NULL;
+	free(node);	
+	node = NULL;
+	SWOFL->it = NULL;
+	return 0;
+}
+
+int create_pwofl_entry(PWOFL_ENTRY* pwofl_entry, SWOFL_ENTRY* swofl_entry) {
+	if (!pwofl_entry || !swofl_entry || !is_dir_open())
+		return -1;
+
+	pwofl_entry->id = generate_file_id();
+	pwofl_entry->sys_file = swofl_entry;
+	pwofl_entry->current_position = 0;
+	
+	if(AppendFila2(PWOFL, (void*)pwofl_entry)) {
+		return -1;
+	}
+	
+	pwofl_entry->pwofl_container = PWOFL->last;
+	
+	swofl_entry->refs += 1;
+	
+	return 0;
+}
+
+int delete_pwofl_entry(PWOFL_ENTRY* entry) {
+	if (!entry || !is_dir_open())
+		return -1;
+	
+	entry->sys_file->refs -= 1;
+	if (entry->sys_file->refs == 0)
+		if(delete_swofl_entry(entry->sys_file)) {
+			return -1;
+		}
+		
+	remove_node_pwofl(entry->pwofl_container);
+	free(entry);
+	entry = NULL;
+	return 0;
+}
+
+int remove_node_pwofl(NODE2* node) {
+	if (!node)
+		return -1;
+	if (!node->ant) {
+		PWOFL->first = node->next;
+		if (node->next)
+			node->next->ant = NULL;
+	} else if (!node->next) {
+		node->ant->next = NULL;
+		PWOFL->last = node->ant;
+	} else {
+		node->ant->next = node->next;
+		node->next->ant = node->ant;
+	}
+	
+	node->node = NULL;
+	free(node);	
+	node = NULL;
+	PWOFL->it = NULL;
+	return 0;
+}
+
+unsigned int generate_file_id() {
+	pwofl_id += 1;
+	if (pwofl_id == 0)
+		printf("Not enough file descriptors. The system may be compromised\nPlease, consider closing the directory and reopening it before proceeding.\n");
+
+	return pwofl_id - 1;
+}
+
+int filename(BYTE filename_out[51], BYTE* filename_in) {
+	if (!filename_in)
+		return -1;
+		
+	BYTE filename_buffer[51] = {'\0'};
+	memcpy((void*)filename_buffer, (void*)filename_in, 50);
+
+	BYTE first_char = 0x21;
+	BYTE last_char = 0x7A;
+	
+	int endstring_found = 0;
+	int i;
+	for (i = 0; i < 50; i++) {
+		if (!endstring_found) {
+			if ((filename_buffer[i] < first_char || filename_buffer[i] > last_char) && filename_buffer[i] != '\0') {
+				return -1;
+			} else if (filename_buffer[i] == '\0') {
+				if (i == 0)
+					return -1;
+				endstring_found = i;
+			}
+		}
+		else {
+			filename_buffer[i] = '\0';
+		}
+	}
+	
+	if (!endstring_found)
+		return -1;
+	
+	memcpy((void*)filename_out, (void*)filename_buffer, 51);
+	
+	return 0;
 }

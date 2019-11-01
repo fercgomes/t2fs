@@ -185,7 +185,7 @@ INF UFRGS - Operating Systems 1 Coursework
    6. Return the number of bytes successfully written.
 
 ### 12. Opendir2:
-   0. Only continues if a partition is mounted and THE Directory isn't already open. (Id 5: this repeats in another function)
+   0. Only continues if a partition is mounted and THE Directory isn't already open.
    1. Create a (**the only**) structure for consulting THE Directory. Current Entry points to the first entry in THE Directory.
    2. Return Success.
    

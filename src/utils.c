@@ -36,3 +36,68 @@ void print_superblock(SUPERBLOCK spb) {
 	printf("----------------------\n");
 
 }
+
+void print_swofl_entry(SWOFL_ENTRY* entry) {
+	printf("--- Imprimindo SWOFL ENTRY ---\n");
+	printf("dir_entry: %08x\n", (unsigned int) entry->dir_entry);
+	printf("refs: %d\n", entry->refs);
+	printf("swofl_container: %08x\n", (unsigned int) entry->swofl_container);
+	printf("---------------------\n");
+
+}
+
+void print_pwofl_entry(PWOFL_ENTRY* entry) {
+	printf("--- Imprimindo PWOFL ENTRY ---\n");
+	printf("id: %d\n", entry->id);
+	printf("sys_file: %08x\n", (unsigned int) entry->sys_file);
+	printf("current_position: %d\n", entry->current_position);
+	printf("pwofl_container: %08x\n", (unsigned int) entry->pwofl_container);
+	printf("---------------------\n");
+	
+}
+
+void print_swofl_list(FILA2 SWOFL) {
+	printf("--- Imprimindo SWOFL ---\n");
+	
+	if(FirstFila2(&SWOFL)) {
+		printf("Falha ao posicionar iterador\n");
+		return;
+	}
+	
+	SWOFL_ENTRY* entry = NULL;
+	
+	do {
+		entry = (SWOFL_ENTRY*) GetAtIteratorFila2(&SWOFL);
+		if (!entry) {
+			printf("Erro: SWOFL_ENTRY nula encontrada\n");
+			continue;
+		}
+		print_swofl_entry(entry);
+	} while (NextFila2(&SWOFL) == 0);
+
+	printf("------------------\n");
+	
+}
+
+void print_pwofl_list(FILA2 PWOFL) {
+	printf("--- Imprimindo PWOFL ---\n");
+	
+	if(FirstFila2(&PWOFL)) {
+		printf("Falha ao posicionar iterador\n");
+		return;
+	}
+	
+	PWOFL_ENTRY* entry = NULL;
+	
+	do {
+		entry = (PWOFL_ENTRY*) GetAtIteratorFila2(&PWOFL);
+		if (!entry) {
+			printf("Erro: PWOFL_ENTRY nula encontrada\n");
+			continue;
+		}
+		print_pwofl_entry(entry);
+	} while (NextFila2(&PWOFL) == 0);
+
+	printf("------------------\n");
+	
+}

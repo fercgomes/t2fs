@@ -4,9 +4,11 @@
 #define __LIBT2FS___
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
-#include "t2disk.h"
+#include <t2disk.h>
 #include <apidisk.h>
+#include <support.h>
 
 typedef struct s_mbr MBR;
 
@@ -264,6 +266,18 @@ int hln2(char *linkname, char *filename);
 /*------------------------------- FIM DA API --------------------------------*/ 
 
 
+typedef struct s_swofl_entry {
+	DIRENT2* dir_entry;
+	unsigned int refs;
+	NODE2* swofl_container;
+} SWOFL_ENTRY;
+
+typedef struct s_pwofl_entry {
+	unsigned int id;
+	SWOFL_ENTRY* sys_file;
+	unsigned int current_position;
+	NODE2* pwofl_container;
+} PWOFL_ENTRY;
 
 
 #endif
