@@ -13,7 +13,18 @@ int is_superblock(SUPERBLOCK spb);
 /*------------------ FORWARD DECLARATIONS --------*/
 void print_superblock(SUPERBLOCK spb);  // Defined at utils.h
 
-/*--------------------- FUNÇÕES DA API -------------------*/
+/*--------------------------- API -------------------------*/
+
+/*---------------- ESTRUTURAS USADAS NA API -----------*/
+typedef struct s_thedir {
+	unsigned int current_entry;
+	unsigned int last_entry; // maybe not necessary, since this information will be at the inode
+} THEDIR;
+
+SUPERBLOCK* spb = NULL;
+THEDIR* dir = NULL;
+
+/*--------------------- FUNÇÕES DA API ----------------*/
 
 /*-----------------------------------------------------------------------------
 Função:	Informa a identificação dos desenvolvedores do T2FS.
