@@ -27,11 +27,11 @@ MOODLE_NAME = entrega.tar.gz
 all: t2fs
 
 t2fs: $(OBJECTS)
-	ar crs $(TARGET) $(OBJECTS) $(LIB_DIR)/apidisk.o $(LIB_DIR)/bitmap2.o
+	ar crs $(TARGET) $(foreach var, $(OBJECTS), $(BIN_DIR)/$(notdir $(var))) $(LIB_DIR)/apidisk.o $(LIB_DIR)/bitmap2.o $(LIB_DIR)/support.o
 
 # Generic rules
 %.o: %.c $(HEADERS)
-	$(CC) $(CFLAGS) -I$(INC_DIR) -c $< -o $@ -Wall
+	$(CC) $(CFLAGS) -I$(INC_DIR) -c $< -o $(BIN_DIR)/$(notdir $@) -Wall
 	
 clean:
 	rm -rf $(LIB_DIR)/*.a $(BIN_DIR)/*.o $(SRC_DIR)/*~ $(SRC_DIR)/*.o $(INC_DIR)/*~ *~
