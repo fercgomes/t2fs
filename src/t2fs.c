@@ -266,6 +266,9 @@ unsigned int checksum(BYTE values[20]) {
 	return checksum;
 }
 
+/*-----------------------------------------------------------------------------
+Função: carrega o superbloco da partição
+-----------------------------------------------------------------------------*/
 int load_superblock(int partition, SUPERBLOCK* spb) {
 	if (spb == NULL) return -1;
 	if (partition < 0 || partition > 3) return -1;
@@ -298,11 +301,16 @@ int load_superblock(int partition, SUPERBLOCK* spb) {
 	return 0;
 }
 
+/*-----------------------------------------------------------------------------
+Função: testa se o dado superbloco é válido
+-----------------------------------------------------------------------------*/
 int is_superblock(SUPERBLOCK spb) {
 	unsigned char values[20];
 	unsigned int checksum_v;
 	memcpy((void*)values, (void*)&spb, 20);
 	checksum_v = checksum(values);
+	
+	return spb.Checksum == checksum_v;
 }
 
 int write_block(unsigned int blockId) {
