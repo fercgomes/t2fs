@@ -80,6 +80,24 @@ INF UFRGS - Operating Systems 1 Coursework
       * Returns zero if is a Superblock, any non-zero value otherwise.
    * ~Checksum~  
       * Returns the value of the checksum.
+   * ~Check if partition is mounted~ 
+      * Returns non-zero if mounted, zero if not mounted.
+   * ~Check if THE Director is open~  
+      * Returns non-zero if is open, zero otherwise.
+   * ~Initialization of the System Wide Open File List~  
+      * Returns zero if success, non-zero if failure.
+   * ~Destroy System Wide Open File List~  
+      * Returns zero if success, non-zero if failure.
+   * ~Initialization of the Process Wide Open File List~  
+      * Returns zero if success, non-zero if failure.
+   * ~Destroy Process Wide Open File List~  
+      * Returns zero if success, non-zero if failure.
+   * ~Create and Delete functions for both (separate), SWOFL entries and PWOFL entries~  
+      * Returns zero if success, non-zero if failure.
+   * ~Generate File Id~  
+      * Returns the next available ID to describe the PWOFL file entry.
+   * ~Check if a given filename is valid~  
+      * Return zero is it is valid, non-zero otherwise.
 
 ### 2. How to implement THE Directory? i-node
  
