@@ -28,7 +28,7 @@ INF UFRGS - Operating Systems 1 Coursework
    3. "SWOFL     := NULL"
    4. "PWOFL     := NULL"
    
-### 1. Format2
+### 1. ~Format2~  
    1. Do the necessary calculations and create the Superblock
       * Calculations:
          * Sector Size: 256 Bytes. **It uses one whole Block in the system**
@@ -74,8 +74,12 @@ INF UFRGS - Operating Systems 1 Coursework
       * Returns number of bytes written.
    * Function to write a given number of Blocks provided in a buffer and given a position and a Size "s".
       * Returns number of bytes written.
+   * ~Load Superblock~  
+      * Returns zero if successful, any non-zero value otherwise.
+   * ~Check if is a Superblock~  
+      * Returns zero if is a Superblock, any non-zero value otherwise.
    * ~Checksum~  
-       Returns the value of the checksum.
+      * Returns the value of the checksum.
 
 ### 2. How to implement THE Directory? i-node
  
