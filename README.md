@@ -57,14 +57,22 @@ INF UFRGS - Operating Systems 1 Coursework
       * Returns the Allocated Block ID.
    * Deallocate an Occupied Block.
       * Returns Success or Failure.
-   * Localize a Free i-node.
+   * ~Localize a Free i-node.~  
       * Returns zero if couldn't find, negative if an error occurred or the positive ID of the i-node.
-   * Allocate a Free i-node.
-      * Returns the Free i-node ID.
-   * Deallocate an Occupied i-node.
+   * ~Allocate a Free i-node.~  
+      * Returns zero if Success, non-zero if Failure.
+   * Delete/Deallocate an Occupied i-node and its Blocks.
       * Returns Success or Failure.
-   * Function to create an i-node given the necessary informations.
-      * Returns the i-node ID.
+   * ~Function to map an i-node ID to a sector.~  
+      * Returns the sector ID in relation to the first sector of the partition.
+   * ~Function to map an i-node ID to a position within a sector.~  
+      * Returns the i-node position within the sector, in IDs not in Bytes.
+   * ~Function to create a new i-node given a dentry.~  
+      * Returns zero if Success, non-zero if Failure.
+   * ~Function to write a given i-node.~  
+      * Returns zero if Success, non-zero if Failure.
+   * ~Function to load an i-node given a dentry.~  
+      * Returns zero if Success, non-zero if Failure.
    * Function to deallocate all Blocks of a given i-node.
       * Returns Success or Failure (determined through the file size in bytes and number of Blocks deallocated).
    * Function to read a Block and return it in a buffer.
