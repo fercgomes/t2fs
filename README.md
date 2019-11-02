@@ -48,16 +48,17 @@ INF UFRGS - Operating Systems 1 Coursework
    3. Allocate the i-node bitmap and initialize it: 1 indicates occupied, 0 indicates free.
    4. The Data Blocks will extend until the end of the partition.  
       **Important: these Blocks will be used for the data files, the diretory files and the index blocks.**   
+   5. Create THE Directory i-node.
    
 ### x. Common functions (incomplete):
    * Localize a Free Block.
-      * Returns the Allocated Block ID.
+      * Returns zero if couldn't find, negative if an error occurred or the positive ID of the Block.
    * Allocate a Free Block.
       * Returns the Allocated Block ID.
    * Deallocate an Occupied Block.
       * Returns Success or Failure.
    * Localize a Free i-node.
-      * Returns the Free i-node ID.
+      * Returns zero if couldn't find, negative if an error occurred or the positive ID of the i-node.
    * Allocate a Free i-node.
       * Returns the Free i-node ID.
    * Deallocate an Occupied i-node.
