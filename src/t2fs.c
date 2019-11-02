@@ -32,11 +32,11 @@ FILA2* PWOFL = NULL;		// Process Wide Open File List
 /*------------------ FUNÇÕES FORA DA API -----------------*/
 
 unsigned int checksum(BYTE values[20]);
-int load_MBR(MBR* mbr);
-int load_superblock(int partition, SUPERBLOCK* spb); // Retorna o número do setor do superbloco, zero se falha
+int load_MBR(MBR* mbr); // Retorna zero se falso, outro número se verdadeiro.
+int load_superblock(int partition, SUPERBLOCK* spb); // Retorna o número do setor do superbloco, zero se falha.
 int is_superblock(SUPERBLOCK spb); // Retorna zero se falso, outro número se verdadeiro.
-int is_mounted();
-int is_dir_open();
+int is_mounted(); // Retorna zero se falso, outro número se verdadeiro.
+int is_dir_open(); // Retorna zero se falso, outro número se verdadeiro.
 
 int swofl_init(); // Inicializa a system wide open file list - Usada na opendir
 int swofl_destroy(); // Destroi a SWOFL - Usada na closedir !!!NAO GARANTE QUE OS ARQUIVOS FORAM SALVOS. TODA ESCRITA DEVE SER REALIZADA POR CREATE/WRITE, NAO AQUI
@@ -53,16 +53,16 @@ unsigned int generate_file_id(); // Gera um id para arquivo aberto (que a princ�
 int filename(BYTE filename_out[51], BYTE* filename_in); // Verifica se o filename_in está ok e, se sim, copia para filename_out e retorna zero. Retorna -1 se inválido
 int find_open_file(BYTE filename[51], SWOFL_ENTRY** capture); // Encontra um arquivo aberto com o dado nome. Espera um nome válido - Usada para abrir arquivo e testar se arquivo está aberto
 
-int localize_freeinode(); // Retorna negativo se erro, zero se não achou ou o ID do bloco (positivo)
-int allocate_inode(int id);
-unsigned int inodeid_to_sector(int id);
-unsigned int inodeid_in_sector(int id);
-int write_new_inode(DIRENT2* dentry);
-int write_inode(DIRENT2 dentry, INODE2 inode);
-int load_inode(DIRENT2 dentry, INODE2* inode);
-int delete_inode(INODE2* inode);
+int localize_freeinode(); // Retorna negativo se erro, zero se não achou ou o ID do bloco (positivo) (NAO USAR)
+int allocate_inode(int id); // Retorna zero se sucesso, outro número se fracasso (NAO USAR)
+unsigned int inodeid_to_sector(int id); // Retorna o número do setor (RELATIVO A A PARTIÇÃO) do inode (NAO USAR)
+unsigned int inodeid_in_sector(int id); // Retorna o a posição do inode internamente ao setor (em ID, não em bytes) (NAO USAR)
+int write_new_inode(DIRENT2* dentry); // Cria um inodo vazio e adiciona ao dentry. Retorna 0 se sucesso e outro número se falha. - Usada na criação de arquivo inexistente.
+int write_inode(DIRENT2 dentry, INODE2 inode); // Escreve inode no disco. Retorna 0 se sucesso e outro número se falha. - Usada na atualização de arquivo (OU "CRIAR" ARQUIVO EXISTENTE)
+int load_inode(DIRENT2 dentry, INODE2* inode); // Carrega um inode do disco. Retorna 0 se sucesso e outro número se falha. - Usada na função de ler/escrever arquivo
+int delete_inode(INODE2* inode); // NOT IMPLEMENTED - Usada na função de deletar arquivo
 
-int localize_freeblock(); // Retorna negative se erro, zero se não achou ou o ID do bloco (positivo)
+int localize_freeblock(); // Retorna negativo se erro, zero se não achou ou o ID do bloco (positivo) -- NAO TESTADA
 
 /*------------------ FORWARD DECLARATIONS --------*/
 void print_superblock(SUPERBLOCK spb);  // Defined at utils.h
@@ -722,7 +722,7 @@ int allocate_inode(int id) {
 }
 
 unsigned int inodeid_to_sector(int id) {
-	return id/_inodes_per_sector;
+	return id / _inodes_per_sector;
 }
 
 unsigned int inodeid_in_sector(int id) {
