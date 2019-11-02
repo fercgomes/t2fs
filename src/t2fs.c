@@ -13,6 +13,7 @@ typedef struct s_partition {
 	unsigned int first_block;
 	unsigned int first_block_sector;
 	unsigned int max_inode_id;
+	unsigned int max_block_id;
 } PARTITION;
 
 typedef struct s_thedir THEDIR;
@@ -55,6 +56,7 @@ int find_open_file(BYTE filename[51], SWOFL_ENTRY** capture); // Encontra um arq
 
 int localize_freeinode(); // Retorna negativo se erro, zero se não achou ou o ID do bloco (positivo) (NAO USAR)
 int allocate_inode(int id); // Retorna zero se sucesso, outro número se fracasso (NAO USAR)
+int deallocate_inode(int id); // Retorna zero se sucesso, outro número se fracasso - Usada na delete_inode
 unsigned int inodeid_to_sector(int id); // Retorna o número do setor (RELATIVO A A PARTIÇÃO) do inode (NAO USAR)
 unsigned int inodeid_in_sector(int id); // Retorna o a posição do inode internamente ao setor (em ID, não em bytes) (NAO USAR)
 int write_new_inode(DIRENT2* dentry); // Cria um inodo vazio e adiciona ao dentry. Retorna 0 se sucesso e outro número se falha. - Usada na criação de arquivo inexistente.
@@ -257,6 +259,7 @@ int mount(int partition) {
 	part.first_block = part.first_inodeblock + spb->inodeAreaSize;
 	part.first_block_sector = spb_sector + part.first_block*spb->blockSize;
 	part.max_inode_id = spb->inodeAreaSize * spb->blockSize * SECTOR_SIZE / sizeof(INODE2) - 1;
+	part.max_block_id = spb->diskSize - part.first_block;
 	return 0;
 }
 
@@ -719,6 +722,23 @@ int allocate_inode(int id) {
 		return -1;
 		
 	int res = setBitmap2(BM_INODE, id, 1);
+	
+	if (closeBitmap2())
+		return -1;
+	
+	return res;
+}
+
+int deallocate_inode(int id) {
+	if (!spb_sector) return -1;
+	
+	if ( id > part.max_inode_id)
+		return -1;
+		
+	if(openBitmap2(spb_sector))
+		return -1;
+		
+	int res = setBitmap2(BM_INODE, id, 0);
 	
 	if (closeBitmap2())
 		return -1;
