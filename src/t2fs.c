@@ -12,7 +12,7 @@ typedef struct s_partition {
 	unsigned int first_inode_sector;
 	unsigned int first_block;
 	unsigned int first_block_sector;
-	unsigned int max_inodes;
+	unsigned int max_inode_id;
 } PARTITION;
 
 typedef struct s_thedir THEDIR;
@@ -256,7 +256,7 @@ int mount(int partition) {
 	part.first_inode_sector = spb_sector + part.first_inodeblock*spb->blockSize;
 	part.first_block = part.first_inodeblock + spb->inodeAreaSize;
 	part.first_block_sector = spb_sector + part.first_block*spb->blockSize;
-	part.max_inodes = spb->inodeAreaSize * spb->blockSize * SECTOR_SIZE / sizeof(INODE2);
+	part.max_inode_id = spb->inodeAreaSize * spb->blockSize * SECTOR_SIZE / sizeof(INODE2) - 1;
 	return 0;
 }
 
@@ -701,13 +701,18 @@ int localize_freeinode() {
 	if(openBitmap2(spb_sector))
 		return -1;
 	
-	return searchBitmap2(BM_INODE, 0);
+	int res = searchBitmap2(BM_INODE, 0);
+	
+	if (closeBitmap2())
+		return -1;
+	
+	return res;
 }
 
 int allocate_inode(int id) {
 	if (!spb_sector) return -1;
 	
-	if ( id >= part.max_inodes)
+	if ( id > part.max_inode_id)
 		return -1;
 		
 	if(openBitmap2(spb_sector))
@@ -729,8 +734,9 @@ unsigned int inodeid_in_sector(int id) {
 	return id % _inodes_per_sector;
 }
 
-int write_new_inode(DIRENT2* dentry) { // Expects a valid dentry struct
+int write_new_inode(DIRENT2* dentry) { // Expects a valid dentry struct	
 	if (!dentry) return -1;
+	dentry->inodeNumber = (unsigned int) -1;
 	if (!spb_sector) return -1;
 	
 	int inodeId = localize_freeinode();
@@ -746,7 +752,6 @@ int write_new_inode(DIRENT2* dentry) { // Expects a valid dentry struct
 		return -1;
 
 	dentry->inodeNumber = (DWORD) inodeId;
-
 	INODE2 inode;
 	inode.blocksFileSize = 0;
 	inode.bytesFileSize = 0;
@@ -755,7 +760,7 @@ int write_new_inode(DIRENT2* dentry) { // Expects a valid dentry struct
 	inode.singleIndPtr = -1;
 	inode.doubleIndPtr = -1;
 	inode.RefCounter = 1;
-
+	
 	memcpy((void*)&buffer[inodeid_in_sector(inodeId)*sizeof(INODE2)], (void*)&inode, sizeof(INODE2));
 	if (write_sector(inode_sector_id, buffer))
 		return -1;
@@ -764,7 +769,7 @@ int write_new_inode(DIRENT2* dentry) { // Expects a valid dentry struct
 }
 
 int write_inode(DIRENT2 dentry, INODE2 inode) {
-	if (dentry.inodeNumber >= part.max_inodes)
+	if (dentry.inodeNumber > part.max_inode_id)
 		return -1;
 		
 	BYTE buffer[SECTOR_SIZE];
@@ -772,6 +777,7 @@ int write_inode(DIRENT2 dentry, INODE2 inode) {
 	if (read_sector(inode_sector_id, buffer))
 		return -1;
 	
+	printf("%d %d %d %d\n", part.max_inode_id, dentry.inodeNumber, inode_sector_id, inodeid_in_sector(dentry.inodeNumber)*sizeof(INODE2));
 	memcpy((void*)&buffer[inodeid_in_sector(dentry.inodeNumber)*sizeof(INODE2)], (void*)&inode, sizeof(INODE2));
 	if (write_sector(inode_sector_id, buffer))
 		return -1;
@@ -781,7 +787,7 @@ int write_inode(DIRENT2 dentry, INODE2 inode) {
 
 int load_inode(DIRENT2 dentry, INODE2* inode) {
 	if (!inode) return -1;
-	if (dentry.inodeNumber >= part.max_inodes)
+	if (dentry.inodeNumber > part.max_inode_id)
 		return -1;
 	
 	if(openBitmap2(spb_sector))

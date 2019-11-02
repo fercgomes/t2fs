@@ -77,7 +77,7 @@ int main() {
 	}
 	
 	for (i = 0; i < 700; i++) {
-		res = load_inode(fakedentry[3], &dummyinode);
+		res = load_inode(fakedentry[i], &dummyinode);
 		printf("Loading real inode: %s - Data: %s - ID: %d %s\n", (res && i < max_inodes) ? "NOT OK" : "OK", dummyinode.blocksFileSize == 0 || i >= max_inodes ? "OK" : "NOT OK",\
 													fakedentry[i].inodeNumber, fakedentry[i].inodeNumber == i+1 || i >= max_inodes? "OK" : "NOT OK");
 	}
