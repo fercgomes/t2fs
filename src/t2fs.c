@@ -64,7 +64,8 @@ int write_inode(DIRENT2 dentry, INODE2 inode); // Escreve inode no disco. Retorn
 int load_inode(DIRENT2 dentry, INODE2* inode); // Carrega um inode do disco. Retorna 0 se sucesso e outro número se falha. - Usada na função de ler/escrever arquivo
 int delete_inode(INODE2* inode); // NOT IMPLEMENTED - Usada na função de deletar arquivo
 
-int localize_freeblock(); // Retorna negativo se erro, zero se não achou ou o ID do bloco (positivo) -- NAO TESTADA
+int localize_freeblock(); // Retorna negativo se erro, zero se não achou ou o ID do bloco (positivo)
+int allocate_freeblock(int id); // Retorna negativo se erro, zero se não achou ou o ID do bloco (positivo)
 
 /*------------------ FORWARD DECLARATIONS --------*/
 void print_superblock(SUPERBLOCK spb);  // Defined at utils.h
@@ -259,7 +260,7 @@ int mount(int partition) {
 	part.first_block = part.first_inodeblock + spb->inodeAreaSize;
 	part.first_block_sector = spb_sector + part.first_block*spb->blockSize;
 	part.max_inode_id = spb->inodeAreaSize * spb->blockSize * SECTOR_SIZE / sizeof(INODE2) - 1;
-	part.max_block_id = spb->diskSize - part.first_block;
+	part.max_block_id = spb->diskSize - part.first_block + 1;
 	return 0;
 }
 
@@ -842,6 +843,23 @@ int localize_freeblock() {
 	int res = searchBitmap2(BM_BLOCK, 0);
 	
 	if(closeBitmap2())
+		return -1;
+	
+	return res - part.first_block + 1;
+}
+
+int allocate_freeblock(int id) {
+	if (!spb_sector) return -1;
+	
+	if ( id > part.max_block_id)
+		return -1;
+		
+	if(openBitmap2(spb_sector))
+		return -1;
+		
+	int res = setBitmap2(BM_BLOCK, id, 1);
+	
+	if (closeBitmap2())
 		return -1;
 	
 	return res;
