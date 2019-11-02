@@ -3,7 +3,18 @@
 */
 #include "t2fs.h"
 
+const int _inodes_per_sector = SECTOR_SIZE/sizeof(INODE2);
+
 /*---------------- ESTRUTURAS USADAS NO SISTEMA -----------*/
+
+typedef struct s_partition {
+	unsigned int first_inodeblock;
+	unsigned int first_inode_sector;
+	unsigned int first_block;
+	unsigned int first_block_sector;
+	unsigned int max_inodes;
+} PARTITION;
+
 typedef struct s_thedir THEDIR;
 
 typedef struct s_swofl_entry SWOFL_ENTRY;
@@ -11,7 +22,9 @@ typedef struct s_swofl_entry SWOFL_ENTRY;
 static unsigned int pwofl_id = 0;
 typedef struct s_pwofl_entry PWOFL_ENTRY;
 
+unsigned int spb_sector = 0;
 SUPERBLOCK* spb = NULL;	// Open Superblock
+PARTITION part;
 THEDIR* thedir = NULL;  	// Open directory
 FILA2* SWOFL = NULL;  	// System Wide Open File List
 FILA2* PWOFL = NULL;		// Process Wide Open File List
@@ -20,7 +33,7 @@ FILA2* PWOFL = NULL;		// Process Wide Open File List
 
 unsigned int checksum(BYTE values[20]);
 int load_MBR(MBR* mbr);
-int load_superblock(int partition, SUPERBLOCK* spb); 
+int load_superblock(int partition, SUPERBLOCK* spb); // Retorna o número do setor do superbloco, zero se falha
 int is_superblock(SUPERBLOCK spb); // Retorna zero se falso, outro número se verdadeiro.
 int is_mounted();
 int is_dir_open();
@@ -39,6 +52,17 @@ unsigned int generate_file_id(); // Gera um id para arquivo aberto (que a princ�
 
 int filename(BYTE filename_out[51], BYTE* filename_in); // Verifica se o filename_in está ok e, se sim, copia para filename_out e retorna zero. Retorna -1 se inválido
 int find_open_file(BYTE filename[51], SWOFL_ENTRY** capture); // Encontra um arquivo aberto com o dado nome. Espera um nome válido - Usada para abrir arquivo e testar se arquivo está aberto
+
+int localize_freeinode(); // Retorna negativo se erro, zero se não achou ou o ID do bloco (positivo)
+int allocate_inode(int id);
+unsigned int inodeid_to_sector(int id);
+unsigned int inodeid_in_sector(int id);
+int write_new_inode(DIRENT2* dentry);
+int write_inode(DIRENT2 dentry, INODE2 inode);
+int load_inode(DIRENT2 dentry, INODE2* inode);
+int delete_inode(INODE2* inode);
+
+int localize_freeblock(); // Retorna negative se erro, zero se não achou ou o ID do bloco (positivo)
 
 /*------------------ FORWARD DECLARATIONS --------*/
 void print_superblock(SUPERBLOCK spb);  // Defined at utils.h
@@ -122,26 +146,26 @@ int format2(int partition, int sectors_per_block) {
 		return -1;
 	}
 	
-	SUPERBLOCK spb;
-	spb.id[0] = 'T';
-	spb.id[1] = '2';
-	spb.id[2] = 'F';
-	spb.id[3] = 'S';
-	spb.version = 0x7e32;
-	spb.superblockSize = 1;
+	SUPERBLOCK spb_;
+	spb_.id[0] = 'T';
+	spb_.id[1] = '2';
+	spb_.id[2] = 'F';
+	spb_.id[3] = 'S';
+	spb_.version = 0x7e32;
+	spb_.superblockSize = 1;
 	
-	spb.freeBlocksBitmapSize = freeBlocksBitmapSize;
-	spb.freeInodeBitmapSize = freeInodeBitmapSize;
-	spb.inodeAreaSize = inodeAreaSize;
-	spb.blockSize = sectors_per_block;
-	spb.diskSize = diskSize;
+	spb_.freeBlocksBitmapSize = freeBlocksBitmapSize;
+	spb_.freeInodeBitmapSize = freeInodeBitmapSize;
+	spb_.inodeAreaSize = inodeAreaSize;
+	spb_.blockSize = sectors_per_block;
+	spb_.diskSize = diskSize;
 	
 	BYTE checksum_vals[20];
-	memcpy((void*)checksum_vals, (void*)&spb, 20);
-	spb.Checksum = checksum(checksum_vals);
+	memcpy((void*)checksum_vals, (void*)&spb_, 20);
+	spb_.Checksum = checksum(checksum_vals);
 	
 	printf("Creating Superblock at partition %d\n", partition);
-	print_superblock(spb);
+	print_superblock(spb_);
 
 	unsigned char buffer[SECTOR_SIZE] = {0};
 	
@@ -154,7 +178,7 @@ int format2(int partition, int sectors_per_block) {
 		}
 	}
 	
-	memcpy((void*)buffer, (void*)&spb, sizeof(spb));
+	memcpy((void*)buffer, (void*)&spb_, sizeof(SUPERBLOCK));
 	if(write_sector(first_sector, buffer)) {
 		printf("Error at format2: couldn't write superblock to the first sector of the partition. Aborting.\n");
 		return -1;
@@ -170,6 +194,29 @@ int format2(int partition, int sectors_per_block) {
 			return -1;
 		}
 	}
+	
+	if(setBitmap2(BM_INODE, 0, 1)) {
+		printf("Error at format2: couldn't mark the directory bit as used.\nThe system consistency is at stake; It is recommended to format it again.\n");
+		return -1;
+	}
+	
+	INODE2 dirInode;
+	dirInode.blocksFileSize = 0;
+	dirInode.bytesFileSize = 0;
+	dirInode.dataPtr[0] = -1;
+	dirInode.dataPtr[1] = -1;
+	dirInode.singleIndPtr = -1;
+	dirInode.doubleIndPtr = -1;
+	dirInode.RefCounter = 1;
+	
+	unsigned int firstInodeBlock = freeBlocksBitmapSize + freeInodeBitmapSize;
+	
+	memcpy((void*)buffer, (void*)&dirInode, sizeof(INODE2));
+	if(write_sector(firstInodeBlock, buffer)) {
+		printf("Error at format2: couldn't write the directory inode to disk.\nThe system consistency is at stake; It is recommended to format it again.\n");
+		return -1;
+	}
+	
 	if (closeBitmap2()) {
 		printf("Error at format2: the bitmaps could not be closed successfuly.\nThe system consistency is at stake. It is recommended to format it again.\n");
 		return -1;
@@ -188,11 +235,12 @@ int mount(int partition) {
 	}
 	
 	spb = (SUPERBLOCK*) malloc(sizeof(SUPERBLOCK));
-	
-	if (load_superblock(partition, spb)) {
+	spb_sector = load_superblock(partition, spb);
+	if (!spb_sector) {
 		printf("Couldn't load the superblock of the given partition\nBe sure that you provided a partition id belonging to 1, 2, 3 or 4.\n");
 		free(spb);
 		spb = NULL;
+		spb_sector = 0;
 		return -1;
 	}
 	
@@ -200,15 +248,22 @@ int mount(int partition) {
 		printf("The given partition has not been formatted yet.\nFormat it to use it.\n");
 		free(spb);
 		spb = NULL;
+		spb_sector = 0;
 		return -1;
 	}
+	
+	part.first_inodeblock = spb->superblockSize + spb->freeBlocksBitmapSize + spb->freeInodeBitmapSize;
+	part.first_inode_sector = spb_sector + part.first_inodeblock*spb->blockSize;
+	part.first_block = part.first_inodeblock + spb->inodeAreaSize;
+	part.first_block_sector = spb_sector + part.first_block*spb->blockSize;
+	part.max_inodes = spb->inodeAreaSize * spb->blockSize * SECTOR_SIZE / sizeof(INODE2);
 	return 0;
 }
 
 /*-----------------------------------------------------------------------------
 Função:	Desmonta a partição atualmente montada, liberando o ponto de montagem.
 -----------------------------------------------------------------------------*/
-int unmount(void) {
+int umount(void) {
 	if (!is_mounted()) {
 		printf("No partition to unmount.\n");
 		return -1;
@@ -221,6 +276,7 @@ int unmount(void) {
 	
 	free(spb);
 	spb = NULL;
+	spb_sector = 0;
 	return 0;
 }
 
@@ -276,6 +332,16 @@ int write2 (FILE2 handle, char *buffer, int size) {
 Função:	Função que abre um diretório existente no disco.
 -----------------------------------------------------------------------------*/
 int opendir2 (void) {
+	if (!is_mounted()) {
+		printf("Must have a partition mounted before opening a directory.\n");
+		return -1;
+	}
+	if (is_dir_open()) {
+		printf("Must close the current directory before opening it again\n");
+		return -1;
+	}
+	
+	// MUST BE FINISHED
 	return -1;
 }
 
@@ -343,13 +409,13 @@ unsigned int checksum(BYTE values[20]) {
 Função: carrega o superbloco da partição
 -----------------------------------------------------------------------------*/
 int load_superblock(int partition, SUPERBLOCK* spb) {
-	if (spb == NULL) return -1;
-	if (partition < 0 || partition > 3) return -1;
+	if (spb == NULL) return 0;
+	if (partition < 0 || partition > 3) return 0;
 		
 	BYTE buffer[SECTOR_SIZE];
 	MBR mbr;
 	
-	if (load_MBR(&mbr)) return -1;
+	if (load_MBR(&mbr)) return 0;
 	
 	unsigned int first_sector;
 	switch(partition) {
@@ -367,11 +433,11 @@ int load_superblock(int partition, SUPERBLOCK* spb) {
 			break;
 	}
 	
-	if(read_sector(first_sector, buffer)) return -1;
+	if(read_sector(first_sector, buffer)) return 0;
 		
 	memcpy((void*)spb, buffer, sizeof(SUPERBLOCK));
 	
-	return 0;
+	return first_sector;
 }
 
 /*-----------------------------------------------------------------------------
@@ -629,3 +695,129 @@ int find_open_file(BYTE filename[51], SWOFL_ENTRY** capture) { // Expects an alr
 	
 	return -1;
 }
+
+int localize_freeinode() {
+	if (!spb_sector) return -1;
+	if(openBitmap2(spb_sector))
+		return -1;
+	
+	return searchBitmap2(BM_INODE, 0);
+}
+
+int allocate_inode(int id) {
+	if (!spb_sector) return -1;
+	
+	if ( id >= part.max_inodes)
+		return -1;
+		
+	if(openBitmap2(spb_sector))
+		return -1;
+		
+	int res = setBitmap2(BM_INODE, id, 1);
+	
+	if (closeBitmap2())
+		return -1;
+	
+	return res;
+}
+
+unsigned int inodeid_to_sector(int id) {
+	return id/_inodes_per_sector;
+}
+
+unsigned int inodeid_in_sector(int id) {
+	return id % _inodes_per_sector;
+}
+
+int write_new_inode(DIRENT2* dentry) { // Expects a valid dentry struct
+	if (!dentry) return -1;
+	if (!spb_sector) return -1;
+	
+	int inodeId = localize_freeinode();
+	if (inodeId <= 0)
+		return -1;
+		
+	if (allocate_inode(inodeId))
+		return -1;
+
+	unsigned int inode_sector_id = inodeid_to_sector(inodeId) + part.first_inode_sector;
+	BYTE buffer[SECTOR_SIZE];
+	if (read_sector(inode_sector_id, buffer))
+		return -1;
+
+	dentry->inodeNumber = (DWORD) inodeId;
+
+	INODE2 inode;
+	inode.blocksFileSize = 0;
+	inode.bytesFileSize = 0;
+	inode.dataPtr[0] = -1;
+	inode.dataPtr[1] = -1;
+	inode.singleIndPtr = -1;
+	inode.doubleIndPtr = -1;
+	inode.RefCounter = 1;
+
+	memcpy((void*)&buffer[inodeid_in_sector(inodeId)*sizeof(INODE2)], (void*)&inode, sizeof(INODE2));
+	if (write_sector(inode_sector_id, buffer))
+		return -1;
+		
+	return 0;
+}
+
+int write_inode(DIRENT2 dentry, INODE2 inode) {
+	if (dentry.inodeNumber >= part.max_inodes)
+		return -1;
+		
+	BYTE buffer[SECTOR_SIZE];
+	unsigned int inode_sector_id = inodeid_to_sector(dentry.inodeNumber) + part.first_inode_sector;
+	if (read_sector(inode_sector_id, buffer))
+		return -1;
+	
+	memcpy((void*)&buffer[inodeid_in_sector(dentry.inodeNumber)*sizeof(INODE2)], (void*)&inode, sizeof(INODE2));
+	if (write_sector(inode_sector_id, buffer))
+		return -1;
+		
+	return 0;
+}
+
+int load_inode(DIRENT2 dentry, INODE2* inode) {
+	if (!inode) return -1;
+	if (dentry.inodeNumber >= part.max_inodes)
+		return -1;
+	
+	if(openBitmap2(spb_sector))
+		return -1;
+		
+	int res = getBitmap2(BM_INODE, dentry.inodeNumber);
+	if (res <= 0)
+		return -1;
+	
+	BYTE buffer[SECTOR_SIZE];
+	unsigned int inode_sector_id = inodeid_to_sector(dentry.inodeNumber) + part.first_inode_sector;
+	if (read_sector(inode_sector_id, buffer))
+		return -1;
+	
+	memcpy((void*)inode, (void*)&buffer[inodeid_in_sector(dentry.inodeNumber)*sizeof(INODE2)], sizeof(INODE2));
+	
+	if (closeBitmap2())
+		return -1;
+	
+	return 0;
+}
+
+int delete_inode(INODE2* inode) { // Carefull to deallocate all blocks involved
+	return -1;
+}
+
+int localize_freeblock() {
+	if (!spb_sector) return -1;
+	if(openBitmap2(spb_sector))
+		return -1;
+	
+	int res = searchBitmap2(BM_BLOCK, 0);
+	
+	if(closeBitmap2())
+		return -1;
+	
+	return res;
+}
+

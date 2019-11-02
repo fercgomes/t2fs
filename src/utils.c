@@ -101,3 +101,16 @@ void print_pwofl_list(FILA2 PWOFL) {
 	printf("------------------\n");
 	
 }
+
+
+void print_inode(INODE2 inode) {
+	printf("--- Imprimindo I-node ---\n");
+	printf("blocksFileSize: %d\n", inode.blocksFileSize);
+	printf("bytesFileSize: %d\n", inode.bytesFileSize);
+	printf("dataPtr[0]: %x08\n", inode.dataPtr[0]);
+	printf("dataPtr[1]: %x08\n", inode.dataPtr[1]);
+	printf("singleIndPtr: %x08\n", inode.singleIndPtr);
+	printf("doubleIndPtr: %x08\n", inode.doubleIndPtr);
+	printf("RefCounter: %d\n", inode.RefCounter);
+	printf("------------------\n");
+}

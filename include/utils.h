@@ -18,5 +18,6 @@ void print_swofl_entry(SWOFL_ENTRY* entry);
 void print_pwofl_entry(PWOFL_ENTRY* entry);
 void print_swofl_list(FILA2 SWOFL);
 void print_pwofl_list(FILA2 PWOFL);
+void print_inode(INODE2 inode);
 
 #endif

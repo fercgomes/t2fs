@@ -25,8 +25,8 @@ extern FILA2* PWOFL;
 extern THEDIR* thedir;
 
 int main() {
-	spb = 0x1;
-	thedir = 0x1;
+	spb = (SUPERBLOCK*) 0x1;
+	thedir = (THEDIR*) 0x1;
 	printf("SWOFL creation1: %s\n", swofl_init() ? "NOT OK" : "OK");
 	printf("SWOFL destroy1: %s\n", swofl_destroy() ? "NOT OK" : "OK");
 	printf("PWOFL creation1: %s\n", pwofl_init() ? "NOT OK" : "OK");
@@ -40,7 +40,7 @@ int main() {
 	PWOFL_ENTRY* pwofl_entry[5];
 	
 	int nodetobedeleted = 3;
-	char namefortest[51] = "NAMEFORTEST";
+	unsigned char namefortest[51] = "NAMEFORTEST";
 	int i;
 	for (i = 0; i < 5; i++) {
 		fakedir[i] = malloc(sizeof(DIRENT2));
