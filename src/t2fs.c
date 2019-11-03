@@ -339,7 +339,7 @@ FILE2 create2 (char *filename) {
 		return -1;
 	}
 	
-	if (find_open_file(_filename, &swofl_e)) {
+	if (!find_open_file(_filename, &swofl_e)) {
 		printf("The file you are trying to create is open\n\tCouldn't create the file\n");
 		free(swofl_e);
 		return -1;
@@ -404,7 +404,7 @@ int delete2 (char *filename) {
 		return -1;
 	}
 	
-	if (find_open_file(_filename, &swofl_e)) {
+	if (!find_open_file(_filename, &swofl_e)) {
 		printf("The file you are trying to remove is open\n\tCouldn't delete the file\n");
 		free(swofl_e);
 		return -1;
