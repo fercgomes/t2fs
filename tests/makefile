@@ -21,6 +21,7 @@ run:
 	printf "===BLOCKS TEST BEGINS===\n"; ./blocks_test > ./tests/log/blocks_test.txt;\
 	printf "===INODE+BLOCK TEST BEGINS===\n"; ./inodeblock_test > ./tests/log/inodeblock_test.txt;\
 	printf "===DIRECTORY TEST BEGINS===\n"; ./dir_test > ./tests/log/dir_test.txt;\
+	printf "===CREATE+DELETE TEST BEGINS===\n"; ./createdelete_test > ./tests/log/createdelete_test.txt;\
 	printf "\nTESTS FINISHED\nCHECK THE LOGS AT tests/log\n";
 	
 compile:
@@ -34,6 +35,7 @@ compile:
 	@$(CC) $(CFLAGS) -I ../include/ -L ../lib/ blocks_test.c -lt2fs -o ../blocks_test -Wall
 	@$(CC) $(CFLAGS) -I ../include/ -L ../lib/ inodeblock_test.c -lt2fs -o ../inodeblock_test -Wall
 	@$(CC) $(CFLAGS) -I ../include/ -L ../lib/ dir_test.c -lt2fs -o ../dir_test -Wall
+	@$(CC) $(CFLAGS) -I ../include/ -L ../lib/ createdelete_test.c -lt2fs -o ../createdelete_test -Wall
 	
 check:
 	@var=0;lines=($$(grep -iRl "NOT OK" ./log/));for x in $${lines[@]}; do if [ $$var = 0 ]; then printf "\nERRORS FOUND IN:\n"; fi; var=$$(($$var + 1)); printf "$$x\n"; done; if [ $$var = 0 ]; then printf "\nNO ERRORS WERE FOUND\nALL OK\n"; else printf "\nERRORS WERE FOUND\nCHECK THE LOGS AND CORRECT IT\n"; fi;

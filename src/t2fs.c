@@ -412,7 +412,6 @@ int delete2 (char *filename) {
 	free(swofl_e);
 	
 	DIRENT2 dentry;
-	INODE2 inode;
 	int dentry_block;
 	int dentry_pos;
 	if (search_file_in_dir((char*)_filename, &dentry, &dentry_block, &dentry_pos)) {
@@ -431,7 +430,7 @@ int delete2 (char *filename) {
 		return -1;
 	}
 	
-	int bid;
+	unsigned int bid;
 	if (load_inode_block(thedir->inode, bbuffer, dentry_block, &bid)) {
 		printf("Unexpected Error occurred at delete2: DLDIND\n\tCouldn't delete the file\n");
 		free_block_buffer(bbuffer);
@@ -440,9 +439,9 @@ int delete2 (char *filename) {
 	
 	memcpy((void*)&bbuffer[dentry_pos*sizeof(DIRENT2)], (void*)&dentry, sizeof(DIRENT2));
 	
-	if (write_inode_block(&(thedir->inode), bbuffer, dentry_block) {
+	if (write_inode_block(&(thedir->inode), bbuffer, dentry_block)) {
 		printf("Unexpected Error occurred at delete2: DWTBBF\n\tCouldn't delete the file\n");
-		free_block_buffer(bbuffer));
+		free_block_buffer(bbuffer);
 		return -1;
 	}
 	

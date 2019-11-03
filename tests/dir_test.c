@@ -8,7 +8,7 @@ int append_block_to_inode(INODE2* inode, BLOCKBUFFER block); // Escreve um bloco
 int load_inode_block(INODE2 inode, BLOCKBUFFER block_buffer, unsigned int block_pos, unsigned int* block_id); // Carrega um dado bloco do inode. Retorna zero se sucesso, outro número se falha. - Usada para reads
 int write_inode_block(INODE2* inode, BLOCKBUFFER block, unsigned int block_pos); // Escreve um bloco na posição designada. Retorna zero se sucesso, outro número se falha - Usada para writes
 
-int search_file_in_dir(char* filename, DIRENT2* dentry); // Busca uma dentry com o dado nome e retorna no ponteiro para dentry. Retorna zero se sucesso, outro número se fracasso.
+int search_file_in_dir(char* filename, DIRENT2* dentry, int* dentry_block, int* dentry_pos); // Busca uma dentry com o dado nome e retorna no ponteiro para dentry. Retorna zero se sucesso, outro número se fracasso.
 int write_to_invalid_dentry_in_dir(DIRENT2 dentry); // Busca uma dentry inválida no diretório e escreve sobre ela. Retorna zero se sucesso, outro número se fracasso. (NÃO USAR)
 int write_dentry_to_dir(DIRENT2 dentry); // Escreve uma dentry no diretório. Retorna zero se sucesso, outro número se fracasso.
 
@@ -58,7 +58,9 @@ int main() {
 	
 	thedir->inode.bytesFileSize = last_block*SECTOR_SIZE;
 	
-	printf("Searching for filename: %s\n", search_file_in_dir("3", &dummydentry) == 0 ? "OK" : "NOT OK");
+	int dummyint1;
+	int dummyint2;
+	printf("Searching for filename: %s\n", search_file_in_dir("3", &dummydentry, &dummyint1, &dummyint2) == 0 ? "OK" : "NOT OK");
 	printf("\tChecking for filenames: Exp: %s Read: %s Result: %s\n", "3", dummydentry.name, strcmp("3", dummydentry.name) == 0 ? "OK" : "NOT OK");
 	
 	for (i = 0; i < last_block*part.dirs_in_block; i++) {
