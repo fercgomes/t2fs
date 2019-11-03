@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include <t2disk.h>
 #include <bitmap2.h>
@@ -288,6 +289,22 @@ typedef struct s_pwofl_entry {
 	NODE2* pwofl_container;
 } PWOFL_ENTRY;
 
+typedef struct s_partition {
+	unsigned int first_sector;
+	unsigned int first_inodeblock;
+	unsigned int first_inode_sector;
+	unsigned int first_block;
+	unsigned int first_block_sector;
+	unsigned int max_inode_id;
+	unsigned int max_block_id;
+	unsigned int bytes_in_block;
+	unsigned int blockids_in_block;
+	unsigned int dirs_in_block;
+	unsigned int max_dentries;
+} PARTITION;
+
+typedef BYTE SECTOR[SECTOR_SIZE];
+typedef BYTE* BLOCKBUFFER;
 
 #endif
 
