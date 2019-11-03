@@ -5,7 +5,7 @@ INF UFRGS - Operating Systems 1 Coursework
 ## Important notes
 
  * Block address begins in zero, and the first position is at the 
-    ![equation](https://latex.codecogs.com/gif.latex?\Delta%20:=%20uperBlockSize%20+%20freeBlocksBitmapSize%20+%20freeInodeBitmapSize) Block
+    ![equation](https://latex.codecogs.com/gif.latex?\Delta%20:=%20superBlockSize%20+%20freeBlocksBitmapSize%20+%20freeInodeBitmapSize) Block
  * Any sector that coudln't fit in a Block will be ignored (**Only the ones at the end of the partition**).
  * THE Directory is described by one, and only one, i-node.
 
@@ -51,17 +51,21 @@ INF UFRGS - Operating Systems 1 Coursework
    5. Create THE Directory i-node.
    
 ### x. Common functions (incomplete):
-   * Localize a Free Block.
+   * ~Localize a Free Block.~  
       * Returns zero if couldn't find, negative if an error occurred or the positive ID of the Block.
-   * Allocate a Free Block.
+   * ~Allocate a Free Block.~  
       * Returns the Allocated Block ID.
-   * Deallocate an Occupied Block.
+   * ~Deallocate an Occupied Block.~  
       * Returns Success or Failure.
    * ~Localize a Free i-node.~  
       * Returns zero if couldn't find, negative if an error occurred or the positive ID of the i-node.
    * ~Allocate a Free i-node.~  
       * Returns zero if Success, non-zero if Failure.
-   * Delete/Deallocate an Occupied i-node and its Blocks.
+   * ~Append a Block to an i-node.~  
+      * Returns zero if Success, non-zero if Failure.
+   * ~Function to deallocate all Blocks of a given i-node.~
+      * Returns Success or Failure (determined through the file size in bytes and number of Blocks deallocated).
+   * ~Delete an Occupied i-node completely.~
       * Returns Success or Failure.
    * ~Function to map an i-node ID to a sector.~  
       * Returns the sector ID in relation to the first sector of the partition.
@@ -73,15 +77,9 @@ INF UFRGS - Operating Systems 1 Coursework
       * Returns zero if Success, non-zero if Failure.
    * ~Function to load an i-node given a dentry.~  
       * Returns zero if Success, non-zero if Failure.
-   * Function to deallocate all Blocks of a given i-node.
-      * Returns Success or Failure (determined through the file size in bytes and number of Blocks deallocated).
-   * Function to read a Block and return it in a buffer.
+   * ~Function to read a Block and return it in a buffer.~  
       * Returns Success or Failure.
-   * Function to read a given number of Blocks and return them in a buffer.
-      * Returns number of bytes read.
-   * Function to write a given Block buffer into a Block position.
-      * Returns number of bytes written.
-   * Function to write a given number of Blocks provided in a buffer and given a position and a Size "s".
+   * ~Function to write a given Block buffer into a Block position.~  
       * Returns number of bytes written.
    * ~Load Superblock~  
       * Returns zero if successful, any non-zero value otherwise.
@@ -209,7 +207,7 @@ INF UFRGS - Operating Systems 1 Coursework
          **This depends on the Current Pointer's position.**
    6. Return the number of bytes successfully written.
 
-### 12. Opendir2:
+### 12. ~Opendir2:~  
    0. Only continues if a partition is mounted and THE Directory isn't already open.
    1. Create a (**the only**) structure for consulting THE Directory. Current Entry points to the first entry in THE Directory.
    2. Load THE Directory i-node and initialize THEDIR struct.
@@ -217,14 +215,14 @@ INF UFRGS - Operating Systems 1 Coursework
    4. Initialize Process-Wide Open File List.
    5. Return Success.
    
-### 13. Readdir2:
+### 13. ~Readdir2:~  
    0. Check if a partition is mounted and THE Directory is already open. (Id 5: this repeats in another function)
    1. Check if Current Entry is pointing to a valid dentry.
    2. Put the entry in the variable given by the user.
    3. Update the Current Entry.
    2. Return Success.
    
-### 14. Closedir2:  
+### 14. ~Closedir2:~    
    0. Check if a partition is mounted and THE Directory is open. (Id 5: this repeats in another function)
    1. Check if there are no open files.
    2. Close THE Directory.

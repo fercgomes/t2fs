@@ -18,6 +18,7 @@ int delete_pwofl_entry(PWOFL_ENTRY* entry);
 void print_swofl_list(FILA2 SWOFL);
 void print_pwofl_list(FILA2 PWOFL);
 int find_open_file(BYTE filename[51], SWOFL_ENTRY** capture);
+int search_pwofl(FILE2 id, PWOFL_ENTRY** capture); // Encontra um arquivo aberto na PWOFL dado o handler. Retorna 0 se sucesso, outro número se válido.
 
 extern SUPERBLOCK* spb;
 extern FILA2* SWOFL;
@@ -62,6 +63,14 @@ int main() {
 	if (!search_res) {
 		printf("\t====== FOUND:\n");
 		print_swofl_entry(dummy_swofl_entry);
+	}
+	
+	PWOFL_ENTRY* dummy_pwofl_entry;
+	search_res = search_pwofl(3, &dummy_pwofl_entry);
+	printf("\n====== SEARCHING FOR \"%d\" FILE: %s\n", 3, search_res ? "NOT OK" : "OK");
+	if (!search_res) {
+		printf("\t====== FOUND:\n");
+		print_pwofl_entry(dummy_pwofl_entry);
 	}
 	
 	printf("\n====== Deleting entries at %d: %s\n\n", nodetobedeleted, delete_pwofl_entry(pwofl_entry[nodetobedeleted]) ? "NOT OK" : "OK");

@@ -107,10 +107,10 @@ void print_inode(INODE2 inode) {
 	printf("--- Imprimindo I-node ---\n");
 	printf("blocksFileSize: %d\n", inode.blocksFileSize);
 	printf("bytesFileSize: %d\n", inode.bytesFileSize);
-	printf("dataPtr[0]: %x08\n", inode.dataPtr[0]);
-	printf("dataPtr[1]: %x08\n", inode.dataPtr[1]);
-	printf("singleIndPtr: %x08\n", inode.singleIndPtr);
-	printf("doubleIndPtr: %x08\n", inode.doubleIndPtr);
+	printf("dataPtr[0]: %d\n", inode.dataPtr[0]);
+	printf("dataPtr[1]: %d\n", inode.dataPtr[1]);
+	printf("singleIndPtr: %d\n", inode.singleIndPtr);
+	printf("doubleIndPtr: %d\n", inode.doubleIndPtr);
 	printf("RefCounter: %d\n", inode.RefCounter);
 	printf("------------------\n");
 }
