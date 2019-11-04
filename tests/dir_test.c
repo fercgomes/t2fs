@@ -51,6 +51,7 @@ int main() {
 	
 	int last_block = 0;
 	i = 0;
+	printf("%d\n", thedir->inode.blocksFileSize);
 	while(!append_block_to_inode(&(thedir->inode), block_buffer[i])) i++;
 	last_block = i;
 	
