@@ -125,7 +125,7 @@ INF UFRGS - Operating Systems 1 Coursework
    
 ### 5. Identify: just do it.
 
-### 6. Create2:  
+### 6. ~Create2:~    
    0. Check if a partition is mounted and THE Directory is open. (Id 5: this repeats in another function)
    1. Check if the given file name is valid. (Id 9: this repeats in another function)
    2. Check if a file with the given name is not open. If is open, return an error.
@@ -140,7 +140,7 @@ INF UFRGS - Operating Systems 1 Coursework
          3. Create a dentry and add it to THE Directory. **Create a function for common file dentry creation!**
    4. Return Success
    
-### 7. Delete2:
+### 7. ~Delete2:~  
    0. Check if a partition is mounted and THE Directory is open. (Id 5: this repeats in another function)
    1. Check if the given file name is valid. (Id 9: this repeats in another function)
    2. Locate the file. (Id 1: this repeats in another function)
@@ -158,7 +158,7 @@ INF UFRGS - Operating Systems 1 Coursework
          1. Save i-node.
    7. Return Success. 
       
-### 8. Open2:
+### 8. ~Open2:~  
    0. Check if a partition is mounted and THE Directory is open. (Id 5: this repeats in another function)
    1. Check if the given file name is valid. (Id 9: this repeats in another function)
    2. Locate the file. (Id 1: this repeats in another function)  
@@ -174,7 +174,7 @@ INF UFRGS - Operating Systems 1 Coursework
       5. Return the FILE2 descriptor.
    4. Return the FILE2 descriptor.
 
-### 9. Close2:
+### 9. ~Close2:~  
    0. Check if a partition is mounted and THE Directory is open. (Id 5: this repeats in another function)
    1. Check if the FILE2 descriptor is valid. (Id 10: this repeats in another function)
    2. Find the file in the Process-Wide Open File List (PWOFL) using the FILE2 identifier. (Id 2: this repeats in another function)
@@ -183,7 +183,7 @@ INF UFRGS - Operating Systems 1 Coursework
    5. Decrement the SWOFL entry. If it reaches zero, remove it from the list. **Careful not to break the list.**
    6. Return Success.
    
-### 10. Read2:
+### 10. Read2:  
    0. Check if a partition is mounted and THE Directory is open. (Id 5: this repeats in another function)
    1. Check if the Buffer pointer is not NULL and Size is not negative. (Id 3: this repeats in another function)
    2. Check if the FILE2 descriptor is valid. (Id 10: this repeats in another function)
