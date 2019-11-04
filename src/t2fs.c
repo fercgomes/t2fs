@@ -13,7 +13,7 @@ typedef struct s_thedir THEDIR;
 
 typedef struct s_swofl_entry SWOFL_ENTRY;
 
-static unsigned int pwofl_id = 0;
+static FILE2 pwofl_id = 0;
 typedef struct s_pwofl_entry PWOFL_ENTRY;
 
 typedef struct s_partition PARTITION;
@@ -40,13 +40,13 @@ int swofl_init(); // Inicializa a system wide open file list - Usada na opendir
 int swofl_destroy(); // Destroi a SWOFL - Usada na closedir !!!NAO GARANTE QUE OS ARQUIVOS FORAM SALVOS. TODA ESCRITA DEVE SER REALIZADA POR CREATE/WRITE, NAO AQUI
 int pwofl_init(); // Inicializa a process wide open file list - Usada na opendir
 int pwofl_destroy(); // Destroi a PWOFL - Usada na closedir !!!NAO GARANTE QUE OS ARQUIVOS FORAM SALVOS. TODA ESCRITA DEVE SER REALIZADA POR CREATE/WRITE, NAO AQUI
-int create_swofl_entry(SWOFL_ENTRY* swofl_entry, DIRENT2* dir_entry); // Cria uma entrada para a SWOFL - e adiciona na lista (NAO USAR MANUALMENTE)
+int create_swofl_entry(SWOFL_ENTRY* swofl_entry, DIRENT2* dir_entry); // Cria uma entrada para a SWOFL - e adiciona na lista
 int delete_swofl_entry(SWOFL_ENTRY* entry); // Remove uma entrada da SWOFL - e remove da lista (NAO USAR MANUALMENTE)
 int remove_node_swofl(NODE2* node); // Remove um nodo da lista SWOFL (NAO USAR MANUALMENTE)
 int create_pwofl_entry(PWOFL_ENTRY* pwofl_entry, SWOFL_ENTRY* swofl_entry); // Cria uma entrada para a PWOFL - Usada para abrir arquivo
 int delete_pwofl_entry(PWOFL_ENTRY* entry); // Remove uma entrada da PWOFL - e remove da lista - Usada para fechar arquivo
 int remove_node_pwofl(NODE2* node); // Remove um nodo da lista PWOFL (NAO USAR MANUALMENTE)
-unsigned int generate_file_id(); // Gera um id para arquivo aberto (que a princípio nem vai ser usado, pelo jeito)
+FILE2 generate_file_id(); // Gera um id para arquivo aberto (que a princípio nem vai ser usado, pelo jeito)
 
 int check_filename(BYTE filename_out[51], BYTE* filename_in); // Verifica se o filename_in está ok e, se sim, copia para filename_out e retorna zero. Retorna -1 se inválido
 int find_open_file(BYTE filename[51], SWOFL_ENTRY** capture); // Encontra um arquivo aberto com o dado nome. Espera um nome válido - Usada para abrir arquivo e testar se arquivo está aberto
@@ -331,20 +331,15 @@ FILE2 create2 (char *filename) {
 	BYTE _filename[51];
 	if(check_filename(_filename, (BYTE*)filename)) {
 		printf("The filename provided is invalid\n");
-	}
-	
-	SWOFL_ENTRY* swofl_e = malloc(sizeof(SWOFL_ENTRY));
-	if (!swofl_e) {
-		printf("Unexpected Error occurred at create2: CMALC\n\tCoudln't create the file\n");
 		return -1;
 	}
+	
+	SWOFL_ENTRY* swofl_e;
 	
 	if (!find_open_file(_filename, &swofl_e)) {
 		printf("The file you are trying to create is open\n\tCouldn't create the file\n");
-		free(swofl_e);
 		return -1;
 	}
-	free(swofl_e);
 	
 	DIRENT2 dentry;
 	INODE2 inode;
@@ -396,20 +391,15 @@ int delete2 (char *filename) {
 	BYTE _filename[51];
 	if(check_filename(_filename, (BYTE*)filename)) {
 		printf("The filename provided is invalid\n");
-	}
-	
-	SWOFL_ENTRY* swofl_e = malloc(sizeof(SWOFL_ENTRY));
-	if (!swofl_e) {
-		printf("Unexpected Error occurred at delete2: DMALC\n\tCoudln't delete the file\n");
 		return -1;
 	}
+	
+	SWOFL_ENTRY* swofl_e;
 	
 	if (!find_open_file(_filename, &swofl_e)) {
 		printf("The file you are trying to remove is open\n\tCouldn't delete the file\n");
-		free(swofl_e);
 		return -1;
 	}
-	free(swofl_e);
 	
 	DIRENT2 dentry;
 	int dentry_block;
@@ -454,14 +444,106 @@ int delete2 (char *filename) {
 Função:	Função que abre um arquivo existente no disco.
 -----------------------------------------------------------------------------*/
 FILE2 open2 (char *filename) {
-	return -1;
+	if (!is_mounted()) {
+		printf("Must have a partition mounted before operating a file.\n");
+		return -1;
+	}
+	if (!is_dir_open()) {
+		printf("Must open the directory before the open file operation\n");
+		return -1;
+	}
+	
+	BYTE _filename[51];
+	if(check_filename(_filename, (BYTE*)filename)) {
+		printf("The filename provided is invalid\n");
+		return -1;
+	}
+	
+	SWOFL_ENTRY* swofl_e = NULL;
+	PWOFL_ENTRY* pwofl_e = malloc(sizeof(PWOFL_ENTRY));
+	
+	if (!pwofl_e) {
+		printf("Unexpected Error occurred at open2: OPWOFLMLC\n\tCouldn't open the file\n");
+		return -1;
+	}
+	
+	if (!find_open_file(_filename, &swofl_e)) {
+		if (create_pwofl_entry(pwofl_e, swofl_e)) {
+			printf("Unexpected Error occurred at open2: OCPWOFl\n\tCouldn't open the file\n");
+			free(pwofl_e);
+			return -1;
+		}
+		return pwofl_e->id;
+	}
+	
+	int dt_block;
+	int dt_pos;	
+	DIRENT2* dentry = malloc(sizeof(DIRENT2));
+	if (!dentry) {
+		printf("Unexpected Error occurred at open2: ODTMLC\n\tCouldn't open the file\n");
+		free(pwofl_e);
+		return -1;
+	}
+	
+	if (search_file_in_dir((char*)_filename, dentry, &dt_block, &dt_pos)) {
+		printf("Couldn't find a file with the given name\n");
+		free(dentry);
+		free(pwofl_e);
+		return -1;
+	}
+
+	SWOFL_ENTRY* swofl_e2 = malloc(sizeof(SWOFL_ENTRY));
+	
+	if (!swofl_e2) {
+		printf("Unexpected Error occurred at open2: OMSWOFL\n\tCouldn't open the file\n");
+		free(dentry);
+		free(pwofl_e);
+		return -1;
+	}
+	
+	if (create_swofl_entry(swofl_e2, dentry)) {
+		printf("Unexpected Error occurred at open2: OCSWOFL\n\tCouldn't open the file\n");
+		free(dentry);
+		free(pwofl_e);
+		free(swofl_e2);
+		return -1;
+	}
+	
+	if (create_pwofl_entry(pwofl_e, swofl_e2)) {
+		printf("Unexpected Error occurred at open2: OCPWOFl\n\tCouldn't open the file\n");
+		free(dentry);
+		free(pwofl_e);
+		free(swofl_e2);
+		return -1;
+	}
+	return pwofl_e->id;
 }
 
 /*-----------------------------------------------------------------------------
 Função:	Função usada para fechar um arquivo.
 -----------------------------------------------------------------------------*/
 int close2 (FILE2 handle) {
-	return -1;
+	if (!is_mounted()) {
+		printf("Must have a partition mounted before operating a file.\n");
+		return -1;
+	}
+	if (!is_dir_open()) {
+		printf("Must open the directory before the closing a file\n");
+		return -1;
+	}
+	
+	PWOFL_ENTRY* entry;
+	if(search_pwofl(handle, &entry)) {
+		printf("Couldn't find the open file referred by the given handle\n");
+		return -1;
+	}
+	
+	if (delete_pwofl_entry(entry)) {
+		printf("Unexpected Error occurred at close2: CDPWOFL\n\tCouldn't close the file\n");
+		return -1;
+	}
+
+	return 0;
 }
 
 /*-----------------------------------------------------------------------------
@@ -897,7 +979,7 @@ int remove_node_pwofl(NODE2* node) {
 	return 0;
 }
 
-unsigned int generate_file_id() {
+FILE2 generate_file_id() {
 	pwofl_id += 1;
 	if (pwofl_id == 0)
 		printf("Not enough file descriptors. The system may be compromised\nPlease, consider closing the directory and reopening it before proceeding.\n");

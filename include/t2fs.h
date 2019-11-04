@@ -283,7 +283,7 @@ typedef struct s_swofl_entry {
 } SWOFL_ENTRY;
 
 typedef struct s_pwofl_entry {
-	unsigned int id;
+	FILE2 id;
 	SWOFL_ENTRY* sys_file;
 	unsigned int current_position;
 	NODE2* pwofl_container;
