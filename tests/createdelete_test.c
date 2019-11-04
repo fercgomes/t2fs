@@ -16,11 +16,6 @@ int main() {
 		return -1;
 	}
 	
-	if (opendir2()) {
-		printf("Error while openning dir: NOT OK\n");
-		return -1;
-	}
-	
 	int max_files = part.max_dentries;
 	
 	char filenames[max_files][51];
@@ -32,17 +27,45 @@ int main() {
 		sprintf(filenames[i], "%d", i);
 	}
 	
+	FILE2 fHandler[max_files];
 	for (i = 0; i < max_files; i++) {
-		printf("Creating file %d: %s\n", i, create2(filenames[i]) == 0 ? "OK" : "NOT OK");
+		fHandler[i] = create2(filenames[i]);
+		printf("Creating file %d: FID %d %s\n", i, fHandler[i], fHandler[i] >= 0 ? "OK" : "NOT OK");
 	}
-	printf("Creating file withouth space: %s\n", create2(notwritten) != 0 ? "OK" : "NOT OK");
-	printf("Creating file already written: %s\n", create2(filenames[i-1]) == 0 ? "OK" : "NOT OK");
+	FILE2 filenotwritten = create2(notwritten);
+	printf("Creating file withouth space: %s\n", filenotwritten < 0 ? "OK" : "NOT OK");
+	
+	printf("Closing file: %s\n", close2(fHandler[i-1]) == 0 ? "OK" : "NOT OK");
+	fHandler[i-1] = create2(filenames[i-1]);
+	printf("Creating file already written: %s\n", fHandler[i-1] >= 0 ? "OK" : "NOT OK");
 	
 	char deletedfile[51] = "6";
 	
+	printf("Closing file: %s\n", close2(fHandler[6]) == 0 ? "OK" : "NOT OK");
 	printf("Deleting file %s: %s\n", deletedfile, delete2(deletedfile) == 0 ? "OK" : "NOT OK");
 	printf("\tDeleting file again: %s\n", delete2(deletedfile) != 0 ? "OK" : "NOT OK");
-	printf("Recreating file %s: %s\n", deletedfile, create2(deletedfile) == 0 ? "OK" : "NOT OK"); 
+	
+	fHandler[6] = create2(deletedfile);
+	printf("Recreating file %s: %s\n", deletedfile, fHandler[6]  >= 0 ? "OK" : "NOT OK"); 
+	
+	if (opendir2()) {
+		printf("Error while openning dir: NOT OK\n");
+		return -1;
+	}
+	
+	i = 0;
+	DIRENT2 dummydentry;
+	while (!readdir2(&dummydentry)) {
+		printf("Dentry name: %s - Index: %d %s\n", filenames[i], i, strcmp(filenames[i], dummydentry.name) == 0 ? "OK" : "NOT OK");
+		i++;
+	}
+	
+	if (i != max_files) printf("Failed reading all files created in dir: NOT OK\n");
+	else printf("Success reading all files in dir: OK\n");
+	
+	for (i = 0; i < max_files; i++) {
+		printf("Closing file %d: %s\n", i, close2(fHandler[i]) == 0 ? "OK" : "NOT OK");
+	}	
 	
 	if (closedir2()) {
 		printf("Error while closing dir: NOT OK\n");

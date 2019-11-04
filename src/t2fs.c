@@ -23,7 +23,7 @@ typedef BYTE* BLOCKBUFFER;
 
 SUPERBLOCK* spb = NULL;	// Open Superblock
 PARTITION part;
-THEDIR* thedir = NULL;  	// Open directory
+THEDIR* thedir = NULL;
 FILA2* SWOFL = NULL;  	// System Wide Open File List
 FILA2* PWOFL = NULL;		// Process Wide Open File List
 
@@ -281,6 +281,51 @@ int mount(int partition) {
 	part.first_sector = first_sector;
 	part.first_inodeblock = spb->superblockSize + spb->freeBlocksBitmapSize + spb->freeInodeBitmapSize;
 	part.first_inode_sector = part.first_sector + part.first_inodeblock*spb->blockSize;
+	
+	thedir = malloc(sizeof(THEDIR));
+	if (!thedir) {
+		printf("Unexpected Error at mount2: MDMALLC\n\tCouldn't load directory\n");
+		free(spb);
+		spb = NULL;
+		thedir = NULL;
+		return -1;
+	}
+	
+	SECTOR buffer;
+	unsigned int inode_sector_id = part.first_inode_sector;
+	if (read_sector(inode_sector_id, buffer)) {
+		printf("Unexpected Error at mount2: MSECREAD\n\tCouldn't load directory\n");
+		free(spb);
+		spb = NULL;
+		free(thedir);
+		thedir = NULL;
+		return -1;
+	}
+	
+	memcpy((void*)&thedir->inode, (void*)buffer, sizeof(INODE2));
+	if (swofl_init()) {
+		printf("Unexpected Error at mount2: MSWOFLINIT\n\tCouldn't load directory\n");
+		free(spb);
+		spb = NULL;
+		free(thedir);
+		thedir = NULL;
+		
+		if (swofl_destroy()) printf("Unexpected Error at mount2: MSWOFLDTR\n\tCouldn't destroy the SWOFL list\n");
+		
+		return -1;
+	}
+	
+	if (pwofl_init()) {
+		printf("Unexpected Error at mount2: MPWOFLINIT\n\tCouldn't load directory\n");
+		free(spb);
+		spb = NULL;
+		free(thedir);
+		thedir = NULL;
+		
+		if (swofl_destroy()) printf("Unexpected Error at mount2: MSWOFLDTR\n\tCouldn't destroy the SWOFL list\n");
+		if (pwofl_destroy()) printf("Unexpected Error at mount2: MPWOFLDTR\n\tCouldn't destroy the PWOFL list\n");
+	}
+	
 	part.first_block = part.first_inodeblock + spb->inodeAreaSize;
 	part.first_block_sector = part.first_sector + part.first_block*spb->blockSize;
 	part.max_inode_id = spb->inodeAreaSize * spb->blockSize * SECTOR_SIZE / sizeof(INODE2) - 1;
@@ -289,6 +334,7 @@ int mount(int partition) {
 	part.blockids_in_block = part.bytes_in_block/sizeof(DWORD);
 	part.dirs_in_block = part.bytes_in_block/sizeof(DIRENT2); // The correct would be dentry, not dir. Too much work to correct
 	part.max_dentries = 2 + part.dirs_in_block + part.dirs_in_block*part.dirs_in_block;
+	part.dir_open = 0;
 	return 0;
 }
 
@@ -306,9 +352,27 @@ int umount(void) {
 		return -1;
 	}
 	
+	int error = 0;
+	if (!FirstFila2(SWOFL)) {
+		printf("Close all files before closing the directory\n");
+		return -1;
+	}
+	
+	if (pwofl_destroy()) {
+		printf("Unexpected Error at closedir2: CDPWOFLDSTR\n\tOpen files may be lost\n");
+		PWOFL = NULL;
+		error = -1;
+	}
+	
+	if (swofl_destroy()) {
+		printf("Unexpected Error at closedir2: CDSWOFLDSTR\n\tOpen files may be lost\n");
+		SWOFL = NULL;
+		error = -1;
+	}
+	
 	free(spb);
 	spb = NULL;
-	return 0;
+	return error;
 }
 
 /*-----------------------------------------------------------------------------
@@ -321,10 +385,6 @@ Função:	Função usada para criar um novo arquivo no disco e abrí-lo,
 FILE2 create2 (char *filename) {
 	if (!is_mounted()) {
 		printf("Must have a partition mounted before operating a file.\n");
-		return -1;
-	}
-	if (!is_dir_open()) {
-		printf("Must open the directory before the file creation operation\n");
 		return -1;
 	}
 	
@@ -356,7 +416,7 @@ FILE2 create2 (char *filename) {
 			return -1;
 		}
 		
-		return 0;
+		return open2((char*)_filename);
 	}
 	
 	if (new_dentry(&dentry)) {
@@ -372,7 +432,7 @@ FILE2 create2 (char *filename) {
 		return -1;
 	}
 	
-	return 0;
+	return open2((char*)_filename);
 }
 
 /*-----------------------------------------------------------------------------
@@ -381,10 +441,6 @@ Função:	Função usada para remover (apagar) um arquivo do disco.
 int delete2 (char *filename) {
 	if (!is_mounted()) {
 		printf("Must have a partition mounted before operating a file.\n");
-		return -1;
-	}
-	if (!is_dir_open()) {
-		printf("Must open the directory before the file deletion operation\n");
 		return -1;
 	}
 	
@@ -446,10 +502,6 @@ Função:	Função que abre um arquivo existente no disco.
 FILE2 open2 (char *filename) {
 	if (!is_mounted()) {
 		printf("Must have a partition mounted before operating a file.\n");
-		return -1;
-	}
-	if (!is_dir_open()) {
-		printf("Must open the directory before the open file operation\n");
 		return -1;
 	}
 	
@@ -527,10 +579,6 @@ int close2 (FILE2 handle) {
 		printf("Must have a partition mounted before operating a file.\n");
 		return -1;
 	}
-	if (!is_dir_open()) {
-		printf("Must open the directory before the closing a file\n");
-		return -1;
-	}
 	
 	PWOFL_ENTRY* entry;
 	if(search_pwofl(handle, &entry)) {
@@ -551,7 +599,111 @@ Função:	Função usada para realizar a leitura de uma certa quantidade
 		de bytes (size) de um arquivo.
 -----------------------------------------------------------------------------*/
 int read2 (FILE2 handle, char *buffer, int size) {
-	return -1;
+	if (!is_mounted()) {
+		printf("Must have a partition mounted before operating a file.\n");
+		return -1;
+	}
+	
+	if (size <= 0) {
+		printf("Invalid size at read2 operation. Expects a non-zero positive size value\n");
+		return -1;
+	}
+	
+	PWOFL_ENTRY* entry;
+	if(search_pwofl(handle, &entry)) {
+		printf("Couldn't find the open file referred by the given handle\n");
+		return -1;
+	}
+	
+	BLOCKBUFFER bbuffer = new_block_buffer();
+	if (!bbuffer) {
+		printf("Unexpected Error occurred at read2: RBBFRMLC\n\tCouldn't read the file\n");
+		return -1;
+	}
+
+	INODE2 inode;
+	
+	if(load_inode(*entry->sys_file->dir_entry, &inode)) {
+		printf("Unexpected Error occurred at read2: RINDLD\n\tCouldn't read the file\n");
+		free_block_buffer(bbuffer);
+		return -1;
+	}
+	
+	if (entry->current_position == inode.bytesFileSize) {
+		printf("Error: reached end of file\n");
+		free_block_buffer(bbuffer);
+		return -1;
+	}
+	
+	int current_pos_block = entry->current_position/part.bytes_in_block;
+	unsigned int num_blocks = (size / part.bytes_in_block) + 1;
+	unsigned int bytes_in_last_block = (size % part.bytes_in_block)+1;
+	
+	// Reading first block
+	unsigned int bid;
+	if(load_inode_block(inode, bbuffer, current_pos_block, &bid)) {
+			printf("Unexpected Error occurred at read2: RINDBLD%d\n\tCouldn't read the file\n", entry->current_position);
+			free_block_buffer(bbuffer);
+			return -1;
+	}
+	
+	int eof = 0;
+	int bytes_to_read = part.bytes_in_block - (entry->current_position % part.bytes_in_block);
+	if ((entry->current_position + bytes_to_read) > inode.bytesFileSize) { // EOF
+		bytes_to_read = (inode.bytesFileSize % part.bytes_in_block) + 1;
+		eof = 1;
+	} else if (size < bytes_to_read) { // Less bytes then the rest of the block
+		bytes_to_read = size;
+	}
+	
+	int bytes_readed = 0;
+	
+	memcpy((void*)buffer, (void*)&bbuffer[entry->current_position % part.bytes_in_block], bytes_to_read);
+	entry->current_position += bytes_to_read;
+	bytes_readed += bytes_to_read;
+	
+	// Reading other blocks
+	bytes_to_read = part.bytes_in_block;
+	int i;
+	for (i = 1; (i < num_blocks) && (i <= inode.blocksFileSize); i++) { // Reading mid blocks
+		if (eof) break;
+		if ((entry->current_position + bytes_to_read) > inode.bytesFileSize) { // EOF
+			bytes_to_read = (inode.bytesFileSize % part.bytes_in_block) + 1;
+			eof = 1;
+		} 
+		if(load_inode_block(inode, bbuffer, current_pos_block+i, &bid)) {
+			printf("Unexpected Error occurred at read2: RINDBLD%d\n\tCouldn't read the file\n", entry->current_position);
+			free_block_buffer(bbuffer);
+			return -1;
+		}
+		
+		memcpy((void*)buffer, (void*)&bbuffer[entry->current_position % part.bytes_in_block], bytes_to_read);
+		entry->current_position += bytes_to_read;
+		bytes_readed += bytes_to_read;
+	}
+	
+	if (!eof) { // Read last block required by the user
+		if ((entry->current_position + bytes_to_read) > inode.bytesFileSize) { // EOF
+			bytes_to_read = (inode.bytesFileSize % part.bytes_in_block);
+			eof = 1;
+		} else {
+			bytes_to_read = bytes_in_last_block;
+		}
+		
+		if(load_inode_block(inode, bbuffer, current_pos_block+i, &bid)) { // Read last block of the file
+				printf("Unexpected Error occurred at read2: RINDBLD%d\n\tCouldn't read the file\n", entry->current_position);
+				free_block_buffer(bbuffer);
+				return -1;
+		}
+		
+		memcpy((void*)buffer, (void*)&bbuffer[entry->current_position % part.bytes_in_block], bytes_to_read);
+		entry->current_position += bytes_to_read;
+		bytes_readed += bytes_to_read;
+	}
+	
+	free_block_buffer(bbuffer);
+	
+	return bytes_readed;
 }
 
 /*-----------------------------------------------------------------------------
@@ -559,6 +711,44 @@ Função:	Função usada para realizar a escrita de uma certa quantidade
 		de bytes (size) de  um arquivo.
 -----------------------------------------------------------------------------*/
 int write2 (FILE2 handle, char *buffer, int size) {
+	if (!is_mounted()) {
+		printf("Must have a partition mounted before operating a file.\n");
+		return -1;
+	}
+	
+	if (size <= 0) {
+		printf("Invalid size at read2 operation. Expects a non-zero positive size value\n");
+		return -1;
+	}
+	
+	PWOFL_ENTRY* entry;
+	if(search_pwofl(handle, &entry)) {
+		printf("Couldn't find the open file referred by the given handle\n");
+		return -1;
+	}
+	
+	BLOCKBUFFER bbuffer = new_block_buffer();
+	if (!bbuffer) {
+		printf("Unexpected Error occurred at read2: RBBFRMLC\n\tCouldn't read the file\n");
+		return -1;
+	}
+
+	INODE2 inode;
+	
+	if(load_inode(*entry->sys_file->dir_entry, &inode)) {
+		printf("Unexpected Error occurred at read2: RINDLD\n\tCouldn't read the file\n");
+		free_block_buffer(bbuffer);
+		return -1;
+	}
+	
+	if (entry->current_position == inode.bytesFileSize) {
+		printf("Error: reached end of file\n");
+		free_block_buffer(bbuffer);
+		return -1;
+	}
+
+	// TODO: MUST BE FINISHED
+	
 	return -1;
 }
 
@@ -575,39 +765,8 @@ int opendir2 (void) {
 		return -1;
 	}
 	
-	thedir = malloc(sizeof(THEDIR));
-	if (!thedir) {
-		printf("Unexpected Error at opendir2: ODMALLC\n\tCouldn't load directory\n");
-		thedir = NULL;
-		return -1;
-	}
-	
-	SECTOR buffer;
-	unsigned int inode_sector_id = part.first_inode_sector;
-	if (read_sector(inode_sector_id, buffer)) {
-		printf("Unexpected Error at opendir2: ODSECREAD\n\tCouldn't load directory\n");
-		free(thedir);
-		thedir = NULL;
-		return -1;
-	}
-	
-	memcpy((void*)&thedir->inode, (void*)buffer, sizeof(INODE2));
-
-	if (swofl_init()) {
-		printf("Unexpected Error at opendir2: ODSWOFLINIT\n\tCouldn't load directory\n");
-		free(thedir);
-		thedir = NULL;
-		return -1;
-	}
-	
-	if (pwofl_init()) {
-		printf("Unexpected Error at opendir2: ODPWOFLINIT\n\tCouldn't load directory\n");
-		free(thedir);
-		thedir = NULL;
-		return -1;
-	} 
-	
 	thedir->current_entry = 0;
+	part.dir_open = 1;
 	
 	return 0;
 }
@@ -680,28 +839,9 @@ int closedir2 (void) {
 		return -1;
 	}
 	
-	int error = 0;
-	if (!FirstFila2(SWOFL)) {
-		printf("Close all files before closing the directory\n");
-		return -1;
-	}
+	part.dir_open = 0;
 	
-	if (pwofl_destroy()) {
-		printf("Unexpected Error at closedir2: CDPWOFLDSTR\n\tOpen files may be lost\n");
-		PWOFL = NULL;
-		error = -1;
-	}
-	
-	if (swofl_destroy()) {
-		printf("Unexpected Error at closedir2: CDSWOFLDSTR\n\tOpen files may be lost\n");
-		SWOFL = NULL;
-		error = -1;
-	}
-	
-	free(thedir);
-	thedir = NULL;
-	
-	return error;
+	return 0;
 }
 
 /*-----------------------------------------------------------------------------
@@ -798,11 +938,11 @@ int is_superblock(SUPERBLOCK spb) {
 }
 
 int is_mounted() {
-	return (int) spb;
+	return (int)spb && thedir;
 }
 
 int is_dir_open() {
-	return is_mounted() && thedir;
+	return is_mounted() && part.dir_open;
 }
 
 int swofl_init() {
@@ -870,7 +1010,7 @@ int pwofl_destroy() {
 }
 
 int create_swofl_entry(SWOFL_ENTRY* swofl_entry, DIRENT2* dir_entry) {
-	if (!is_dir_open() || !dir_entry || !swofl_entry)
+	if (!is_mounted() || !dir_entry || !swofl_entry)
 		return -1;
 	
 	swofl_entry->dir_entry = dir_entry;
@@ -884,7 +1024,7 @@ int create_swofl_entry(SWOFL_ENTRY* swofl_entry, DIRENT2* dir_entry) {
 }
 
 int delete_swofl_entry(SWOFL_ENTRY* entry) {
-	if (!entry || !is_dir_open())
+	if (!entry || !is_mounted())
 		return -1;
 	
 	if (entry->refs > 0)
@@ -923,7 +1063,7 @@ int remove_node_swofl(NODE2* node) {
 }
 
 int create_pwofl_entry(PWOFL_ENTRY* pwofl_entry, SWOFL_ENTRY* swofl_entry) {
-	if (!pwofl_entry || !swofl_entry || !is_dir_open())
+	if (!pwofl_entry || !swofl_entry || !is_mounted())
 		return -1;
 
 	pwofl_entry->id = generate_file_id();
@@ -942,7 +1082,7 @@ int create_pwofl_entry(PWOFL_ENTRY* pwofl_entry, SWOFL_ENTRY* swofl_entry) {
 }
 
 int delete_pwofl_entry(PWOFL_ENTRY* entry) {
-	if (!entry || !is_dir_open())
+	if (!entry || !is_mounted())
 		return -1;
 	
 	entry->sys_file->refs -= 1;
@@ -981,7 +1121,7 @@ int remove_node_pwofl(NODE2* node) {
 
 FILE2 generate_file_id() {
 	pwofl_id += 1;
-	if (pwofl_id == 0)
+	if (pwofl_id <= 0)
 		printf("Not enough file descriptors. The system may be compromised\nPlease, consider closing the directory and reopening it before proceeding.\n");
 
 	return pwofl_id - 1;
@@ -1037,7 +1177,7 @@ int find_open_file(BYTE filename[51], SWOFL_ENTRY** capture) { // Expects an alr
 }
 
 int search_pwofl(FILE2 id, PWOFL_ENTRY** capture) {
-	if (!is_dir_open() || !capture || !SWOFL || !PWOFL)
+	if (!is_mounted() || !capture || !SWOFL || !PWOFL)
 		return -1;
 	
 	PWOFL_ENTRY* entry;
@@ -1298,7 +1438,7 @@ int write_new_block(BLOCKBUFFER block, int* block_id) {
 int write_block(BLOCKBUFFER block, int block_id) {
 	if (block_id <= 0 || block_id > part.max_block_id || !is_mounted())
 		return -1;
-		
+	
 	if (!block) return -1;
 	
 	if(openBitmap2(part.first_sector))
@@ -1521,6 +1661,7 @@ int write_inode_block(INODE2* inode, BLOCKBUFFER block, unsigned int block_pos) 
 	
 	if (block_pos > inode->blocksFileSize) return -1;
 	if (block_pos < 2) { // Direct Pointers
+	
 		switch(block_pos) {
 			case 0:
 				if (inode->dataPtr[0] == -1) {
@@ -1573,7 +1714,7 @@ int append_block_to_inode(INODE2* inode, BLOCKBUFFER block) {
 	if (!is_mounted()) return -1;
 	if (!inode) return -1;
 	if (!block) return -1;
-	
+				
 	if(write_inode_block(inode, block, inode->blocksFileSize)) {
 		return -1;
 	}
@@ -1772,7 +1913,7 @@ int delete_dentry(DIRENT2* dentry) {
 }
 
 int search_file_in_dir(char* filename, DIRENT2* dentry, int* dentry_block, int* dentry_pos) {
-	if (!is_dir_open()) return -1;
+	if (!is_mounted()) return -1;
 	if (!dentry) return -1;
 	if (!dentry_block) return -1;
 	if (!dentry_pos) return -1;
@@ -1819,7 +1960,7 @@ int search_file_in_dir(char* filename, DIRENT2* dentry, int* dentry_block, int* 
 }
 
 int write_to_invalid_dentry_in_dir(DIRENT2 dentry) {
-	if (!is_dir_open()) return -1;
+	if (!is_mounted()) return -1;
 	
 	int curr_entry = 0;
 	unsigned int block_pos;
@@ -1864,7 +2005,7 @@ int write_to_invalid_dentry_in_dir(DIRENT2 dentry) {
 }
 
 int write_dentry_to_dir(DIRENT2 dentry) {
-	if (!is_dir_open()) return -1;
+	if (!is_mounted()) return -1;
 	
 	unsigned int dir_size_bytes = thedir->inode.bytesFileSize;
 	unsigned int dir_size_blocks = thedir->inode.blocksFileSize;

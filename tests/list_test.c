@@ -7,6 +7,8 @@ typedef struct sFila2 FILA2;
 typedef struct s_swofl_entry SWOFL_ENTRY;
 typedef struct s_pwofl_entry PWOFL_ENTRY;
 typedef struct t2fs_record DIRENT2;
+typedef struct s_partition PARTITION;
+
 int swofl_init();
 int swofl_destroy();
 int pwofl_init();
@@ -24,10 +26,12 @@ extern SUPERBLOCK* spb;
 extern FILA2* SWOFL;
 extern FILA2* PWOFL;
 extern THEDIR* thedir;
+extern PARTITION part;
 
 int main() {
 	spb = (SUPERBLOCK*) 0x1;
 	thedir = (THEDIR*) 0x1;
+	part.dir_open = 1;
 	printf("SWOFL creation1: %s\n", swofl_init() ? "NOT OK" : "OK");
 	printf("SWOFL destroy1: %s\n", swofl_destroy() ? "NOT OK" : "OK");
 	printf("PWOFL creation1: %s\n", pwofl_init() ? "NOT OK" : "OK");
