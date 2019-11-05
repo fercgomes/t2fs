@@ -50,7 +50,7 @@ INF UFRGS - Operating Systems 1 Coursework
       **Important: these Blocks will be used for the data files, the diretory files and the index blocks.**   
    5. Create THE Directory i-node.
    
-### x. Common functions (incomplete):
+### ~x. Common functions (incomplete):~
    * ~Localize a Free Block.~  
       * Returns zero if couldn't find, negative if an error occurred or the positive ID of the Block.
    * ~Allocate a Free Block.~  
@@ -158,7 +158,7 @@ INF UFRGS - Operating Systems 1 Coursework
          1. Save i-node.
    7. Return Success. 
       
-### 8. ~Open2:~  
+### 8. ~Open2:~  missing load symlink
    0. Check if a partition is mounted and THE Directory is open. (Id 5: this repeats in another function)
    1. Check if the given file name is valid. (Id 9: this repeats in another function)
    2. Locate the file. (Id 1: this repeats in another function)  
