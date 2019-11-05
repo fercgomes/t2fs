@@ -301,6 +301,7 @@ typedef struct s_partition {
 	unsigned int blockids_in_block;
 	unsigned int dirs_in_block;
 	unsigned int max_dentries;
+	unsigned int max_blocks_in_inode;
 	int dir_open;
 } PARTITION;
 

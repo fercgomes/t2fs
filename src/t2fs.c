@@ -334,6 +334,7 @@ int mount(int partition) {
 	part.blockids_in_block = part.bytes_in_block/sizeof(DWORD);
 	part.dirs_in_block = part.bytes_in_block/sizeof(DIRENT2); // The correct would be dentry, not dir. Too much work to correct
 	part.max_dentries = 2 + part.dirs_in_block + part.dirs_in_block*part.dirs_in_block;
+	part.max_blocks_in_inode = 2 + part.blockids_in_block + part.blockids_in_block*part.blockids_in_block;
 	part.dir_open = 0;
 	return 0;
 }
@@ -635,25 +636,34 @@ int read2 (FILE2 handle, char *buffer, int size) {
 		return -1;
 	}
 	
+	if (entry->current_position > inode.bytesFileSize) {
+		printf("Error: current position is above the inode size. Your file is corrupted\n");
+		free_block_buffer(bbuffer);
+		return -1;
+	}
+	
+	
 	int current_pos_block = entry->current_position/part.bytes_in_block;
-	unsigned int num_blocks = (size / part.bytes_in_block) + 1;
-	unsigned int bytes_in_last_block = (size % part.bytes_in_block)+1;
+	unsigned int num_blocks = ((size-1) / part.bytes_in_block) + 1;
+	unsigned int bytes_in_last_block = ((size-1) % part.bytes_in_block)+1;
 	
 	// Reading first block
 	unsigned int bid;
 	if(load_inode_block(inode, bbuffer, current_pos_block, &bid)) {
-			printf("Unexpected Error occurred at read2: RINDBLD%d\n\tCouldn't read the file\n", entry->current_position);
+			printf("Unexpected Error occurred at read2: RINDBLD1\n\tCouldn't read the file at position %d\n", entry->current_position);
 			free_block_buffer(bbuffer);
 			return -1;
 	}
 	
 	int eof = 0;
+	int eor = 0;
 	int bytes_to_read = part.bytes_in_block - (entry->current_position % part.bytes_in_block);
 	if ((entry->current_position + bytes_to_read) > inode.bytesFileSize) { // EOF
-		bytes_to_read = (inode.bytesFileSize % part.bytes_in_block) + 1;
+		bytes_to_read = ((inode.bytesFileSize-1) % part.bytes_in_block) + 1;
 		eof = 1;
-	} else if (size < bytes_to_read) { // Less bytes then the rest of the block
+	} else if (size <= bytes_to_read) { // Less bytes then the rest of the block
 		bytes_to_read = size;
+		eor = 1;
 	}
 	
 	int bytes_readed = 0;
@@ -665,38 +675,42 @@ int read2 (FILE2 handle, char *buffer, int size) {
 	// Reading other blocks
 	bytes_to_read = part.bytes_in_block;
 	int i;
-	for (i = 1; (i < num_blocks) && (i <= inode.blocksFileSize); i++) { // Reading mid blocks
-		if (eof) break;
-		if ((entry->current_position + bytes_to_read) > inode.bytesFileSize) { // EOF
-			bytes_to_read = (inode.bytesFileSize % part.bytes_in_block) + 1;
+	for (i = 2; (i < num_blocks) && (i <= inode.blocksFileSize); i++) { // Reading mid blocks
+		if (eof || eor) break;
+		if ((entry->current_position + bytes_to_read) >= inode.bytesFileSize) { // EOF
+			bytes_to_read = ((inode.bytesFileSize-1) % part.bytes_in_block) + 1;
 			eof = 1;
-		} 
-		if(load_inode_block(inode, bbuffer, current_pos_block+i, &bid)) {
-			printf("Unexpected Error occurred at read2: RINDBLD%d\n\tCouldn't read the file\n", entry->current_position);
+		} else if ((bytes_readed + bytes_to_read) >= size) {
+			bytes_to_read = bytes_in_last_block;
+			eor = 1;
+		}
+
+		if(load_inode_block(inode, bbuffer, entry->current_position/part.bytes_in_block, &bid)) {
+			printf("Unexpected Error occurred at read2: RINDBLD2\n\tCouldn't read the file at position %d\n", entry->current_position);
 			free_block_buffer(bbuffer);
 			return -1;
 		}
 		
-		memcpy((void*)buffer, (void*)&bbuffer[entry->current_position % part.bytes_in_block], bytes_to_read);
+		memcpy((void*)&buffer[bytes_readed], (void*)&bbuffer[entry->current_position % part.bytes_in_block], bytes_to_read);
 		entry->current_position += bytes_to_read;
 		bytes_readed += bytes_to_read;
 	}
 	
-	if (!eof) { // Read last block required by the user
+	if (!eof && entry->current_position != inode.bytesFileSize && !eor) {
 		if ((entry->current_position + bytes_to_read) > inode.bytesFileSize) { // EOF
-			bytes_to_read = (inode.bytesFileSize % part.bytes_in_block);
+			bytes_to_read = ((inode.bytesFileSize-1) % part.bytes_in_block)+1;
 			eof = 1;
 		} else {
 			bytes_to_read = bytes_in_last_block;
 		}
 		
-		if(load_inode_block(inode, bbuffer, current_pos_block+i, &bid)) { // Read last block of the file
-				printf("Unexpected Error occurred at read2: RINDBLD%d\n\tCouldn't read the file\n", entry->current_position);
+		if(load_inode_block(inode, bbuffer, entry->current_position/part.bytes_in_block, &bid)) { // Read last block
+				printf("Unexpected Error occurred at read2: RINDBLD3\n\tCouldn't read the file at position %d\n", entry->current_position);
 				free_block_buffer(bbuffer);
 				return -1;
 		}
 		
-		memcpy((void*)buffer, (void*)&bbuffer[entry->current_position % part.bytes_in_block], bytes_to_read);
+		memcpy((void*)&buffer[bytes_readed], (void*)&bbuffer[entry->current_position % part.bytes_in_block], bytes_to_read);
 		entry->current_position += bytes_to_read;
 		bytes_readed += bytes_to_read;
 	}
@@ -717,7 +731,7 @@ int write2 (FILE2 handle, char *buffer, int size) {
 	}
 	
 	if (size <= 0) {
-		printf("Invalid size at read2 operation. Expects a non-zero positive size value\n");
+		printf("Invalid size at write2 operation. Expects a non-zero positive size value\n");
 		return -1;
 	}
 	
@@ -729,27 +743,204 @@ int write2 (FILE2 handle, char *buffer, int size) {
 	
 	BLOCKBUFFER bbuffer = new_block_buffer();
 	if (!bbuffer) {
-		printf("Unexpected Error occurred at read2: RBBFRMLC\n\tCouldn't read the file\n");
+		printf("Unexpected Error occurred at write2: RBBFRMLC\n\tCouldn't write to the file\n");
 		return -1;
 	}
 
 	INODE2 inode;
 	
 	if(load_inode(*entry->sys_file->dir_entry, &inode)) {
-		printf("Unexpected Error occurred at read2: RINDLD\n\tCouldn't read the file\n");
+		printf("Unexpected Error occurred at write2: RINDLD\n\tCouldn't write to file\n");
 		free_block_buffer(bbuffer);
 		return -1;
 	}
 	
-	if (entry->current_position == inode.bytesFileSize) {
-		printf("Error: reached end of file\n");
+	int current_pos_block = entry->current_position/part.bytes_in_block;
+	int last_block_free_size = part.bytes_in_block - (entry->current_position % part.bytes_in_block);
+	int num_blocks_to_write;
+	int bytes_in_last_block = 0;
+	int new_bytes_to_write = size - (inode.bytesFileSize - entry->current_position);
+	if (new_bytes_to_write < 0) new_bytes_to_write = 0;
+	
+	if (last_block_free_size > size) {
+		num_blocks_to_write = 1;
+	} else if (last_block_free_size != part.bytes_in_block) {
+		num_blocks_to_write = ((size - last_block_free_size) / part.bytes_in_block) + 1;
+	} else if (size <= part.bytes_in_block) {
+		num_blocks_to_write = (size / part.bytes_in_block);
+	} else {
+		num_blocks_to_write = (size / part.bytes_in_block) + 1;
+	}
+	
+	if (size > last_block_free_size) {
+		bytes_in_last_block = ((size - last_block_free_size - 1) % part.bytes_in_block) + 1;
+	} else {
+		bytes_in_last_block = size;
+	}
+	
+	int blocks_to_load_write = inode.blocksFileSize - current_pos_block;
+	int new_blocks = num_blocks_to_write - blocks_to_load_write + (bytes_in_last_block != part.bytes_in_block && bytes_in_last_block > 0 && blocks_to_load_write > 0 ? 1 : 0);
+	if (new_blocks < 0) new_blocks = 0;
+
+	if (num_blocks_to_write + current_pos_block > part.max_blocks_in_inode) {
+		printf("File size limit exceeded. Aborting write\n");
 		free_block_buffer(bbuffer);
 		return -1;
+	}
+	
+	
+	int i;
+	
+	/*----------------------------- Checking disk memory: BEGIN ------------------------------*/
+	if (new_blocks > 0) {
+		int k = 0;
+		int* bids = NULL;
+		bids = (int*)malloc(sizeof(int)*new_blocks);
+		if (!bids) {
+			printf("Unexpected Error occurred at write2: RBIDMLC\n\tCouldn't write to file\n");
+			free_block_buffer(bbuffer);
+			return -1;
+		}
+		
+		k = 0;
+		while (k < new_blocks) {
+			bids[k] = localize_freeblock();
+			if (bids[k] == -1) {
+				printf("Disk size exceeded. Aborting write\n");
+				for (i = 0; i < k; i++) {
+					if (deallocate_block(bids[k])) {
+						printf("Unexpected Error occurred at write2: RBIDDLC1\n\tCouldn't deallocate block\n");
+					}
+				}
+				free(bids);
+				free_block_buffer(bbuffer);
+				return -1;
+			}
+			
+			if(allocate_freeblock(bids[k])) {
+				printf("Unexpected Error occurred at write2: RBIALLC\n\tCouldn't write to file\n");
+				for (i = 0; i < k; i++) {
+					if (deallocate_block(bids[k])) {
+						printf("Unexpected Error occurred at write2: RBIDDLC2\n\tCouldn't deallocate block\n");
+					}
+				}
+				free(bids);
+				free_block_buffer(bbuffer);
+				return -1;
+			}
+			
+			k++;
+		}
+		
+		for (i = 0; i < k; i++) {
+			if (deallocate_block(bids[i])) {
+				printf("Unexpected Error occurred at write2: RBIDDLC3\n\tCouldn't deallocate block\n");
+				free(bids);
+				free_block_buffer(bbuffer);
+				return -1;
+			}
+		}
+		free(bids);
+	}
+	/*----------------------------- Checking disk memory: END ------------------------------*/
+		
+	int write_size = last_block_free_size;
+	if ( ( last_block_free_size > 0 ) && ( last_block_free_size >= size ) ) {
+		write_size = size;
+	} else if (last_block_free_size == 0 && size < part.bytes_in_block) {
+		write_size = size;
+	} else if (last_block_free_size == 0) {
+		write_size = part.bytes_in_block;
+	}
+	
+	int eof = 0;
+	int bytes_written = 0;
+	unsigned int bid;
+	if (blocks_to_load_write > 0) {
+		if(load_inode_block(inode, bbuffer, current_pos_block, &bid)) {
+			printf("Unexpected Error occurred at write2: WINDBLD1\n\tCouldn't write to file\n");
+			free_block_buffer(bbuffer);
+			return -1;
+		}
+		
+		memcpy((void*)&bbuffer[entry->current_position % part.bytes_in_block], (void*)&buffer[bytes_written], write_size);
+		if (write_inode_block(&inode, bbuffer, current_pos_block++)) {
+			printf("Unexpected Error occurred at write2: WINDBLW1\n\tCoultn't write to file\n");
+			free_block_buffer(bbuffer);
+			return -1;
+		}
+		
+		bytes_written += write_size;
+		entry->current_position += write_size;
+		write_size = part.bytes_in_block;
+	}	
+	
+	for (i = 1; i < blocks_to_load_write; i++) {
+		if (eof) break;
+		if (bytes_written + write_size > size) { // EOW
+			write_size = bytes_in_last_block;
+			eof = 1;
+		} 
+		if(load_inode_block(inode, bbuffer, current_pos_block, &bid)) {
+			printf("Unexpected Error occurred at write2: WINDBLD2\n\tCouldn't write to file\n");
+			free_block_buffer(bbuffer);
+			return -1;
+		}
+		
+		memcpy((void*)&bbuffer[entry->current_position % part.bytes_in_block], (void*)&buffer[bytes_written], write_size);
+		
+		if (write_inode_block(&inode, bbuffer, current_pos_block++)) {
+			printf("Unexpected Error occurred at write2: WINDBLW2\n\tCoultn't write to file\n");
+			free_block_buffer(bbuffer);
+			return -1;
+		}
+		
+		bytes_written += write_size;
+		entry->current_position += write_size;
+	}
+	
+	if (new_blocks > 0) {
+		memcpy((void*)&bbuffer[entry->current_position % part.bytes_in_block], (void*)&buffer[bytes_written], write_size);
+		if (write_inode_block(&inode, bbuffer, current_pos_block++)) {
+			printf("Unexpected Error occurred at write2: WINDBLW3\n\tCoultn't write to file\n");
+			free_block_buffer(bbuffer);
+			return -1;
+		}
+		
+		inode.blocksFileSize++;
+		bytes_written += write_size;
+		entry->current_position += write_size;
+		write_size = part.bytes_in_block;
+	}
+	
+	for (i = 1; i < new_blocks; i++) {
+		if (eof) break;
+		if (bytes_written + write_size > size) { // EOW
+			write_size = bytes_in_last_block;
+			eof = 1;
+		}
+
+		memcpy((void*)&bbuffer[entry->current_position % part.bytes_in_block], (void*)&buffer[bytes_written], write_size);
+		if (write_inode_block(&inode, bbuffer, current_pos_block++)) {
+			printf("Unexpected Error occurred at write2: WINDBLW4\n\tCoultn't write to file\n");
+			free_block_buffer(bbuffer);
+			return -1;
+		}
+		
+		inode.blocksFileSize++;
+		entry->current_position += write_size;
+		bytes_written += write_size;
 	}
 
-	// TODO: MUST BE FINISHED
+	inode.bytesFileSize += new_bytes_to_write;
+	if (write_inode(*entry->sys_file->dir_entry, inode)) {
+		printf("Unexpected Error occurred at write2: WINDUPDT\n\tCouldn't write to file\n");
+		free_block_buffer(bbuffer);
+		return -1;
+	}
 	
-	return -1;
+	free_block_buffer(bbuffer);
+	return bytes_written;
 }
 
 /*-----------------------------------------------------------------------------
@@ -1661,7 +1852,6 @@ int write_inode_block(INODE2* inode, BLOCKBUFFER block, unsigned int block_pos) 
 	
 	if (block_pos > inode->blocksFileSize) return -1;
 	if (block_pos < 2) { // Direct Pointers
-	
 		switch(block_pos) {
 			case 0:
 				if (inode->dataPtr[0] == -1) {
@@ -1784,10 +1974,9 @@ int load_inode_block(INODE2 inode, BLOCKBUFFER block_buffer, unsigned int block_
 	if (!block_buffer) return -1;
 	if (!block_id) return -1;
 	
-	
 	if (block_pos > inode.blocksFileSize) return -1;
 	*block_id = 0;
-
+	
 	if (block_pos < 2) { // Direct Pointers
 		switch(block_pos) {
 			case 0:
