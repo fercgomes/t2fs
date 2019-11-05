@@ -44,6 +44,7 @@ int main() {
 	for (i = 0; i < max_dirs; i++) {
 		sprintf(dentry[i].name, "%d", i);
 		printf("%s\n", dentry[i].name);
+		dentry[i].TypeVal = 0x01;
 		memcpy((void*)&block_buffer[(i/part.dirs_in_block)][(i%part.dirs_in_block)*sizeof(DIRENT2)], (void*)&dentry[i], sizeof(DIRENT2));
 	}
 	

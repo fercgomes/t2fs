@@ -1013,7 +1013,11 @@ int readdir2 (DIRENT2 *dentry) {
 	free_block_buffer(block_buffer);
 	
 	thedir->current_entry += 1;
-		
+	
+	if (dentry->TypeVal == 0x00) {
+		return readdir2(dentry);
+	}
+	
 	return 0;
 }
 
@@ -2133,7 +2137,7 @@ int search_file_in_dir(char* filename, DIRENT2* dentry, int* dentry_block, int* 
 		
 		memcpy((void*)&dummyDentry, (void*)&block_buffer[pos_in_block*sizeof(DIRENT2)], sizeof(DIRENT2));
 		
-		if (strcmp((char*)filename_, dummyDentry.name) == 0) {
+		if (strcmp((char*)filename_, dummyDentry.name) == 0 && (dummyDentry.TypeVal == 0x01 || dummyDentry.TypeVal == 0x02)) {
 			*dentry_block = block_pos;
 			*dentry_pos = pos_in_block;
 			free_block_buffer(block_buffer);
