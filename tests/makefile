@@ -23,6 +23,7 @@ run:
 	printf "===DIRECTORY TEST BEGINS===\n"; ./dir_test > ./tests/log/dir_test.txt;\
 	printf "===CREATE+DELETE TEST BEGINS===\n"; ./createdelete_test > ./tests/log/createdelete_test.txt;\
 	printf "===OPEN+CLOSE TEST BEGINS===\n"; ./openclose_test > ./tests/log/openclose_test.txt;\
+	printf "===WRITE+READ TEST BEGINS===\n"; ./writeread_test > ./tests/log/writeread_test.txt;\
 	printf "\nTESTS FINISHED\nCHECK THE LOGS AT tests/log\n";
 	
 compile:
@@ -38,6 +39,7 @@ compile:
 	@$(CC) $(CFLAGS) -I ../include/ -L ../lib/ dir_test.c -lt2fs -o ../dir_test -Wall
 	@$(CC) $(CFLAGS) -I ../include/ -L ../lib/ createdelete_test.c -lt2fs -o ../createdelete_test -Wall
 	@$(CC) $(CFLAGS) -I ../include/ -L ../lib/ openclose_test.c -lt2fs -o ../openclose_test -Wall
+	@$(CC) $(CFLAGS) -I ../include/ -L ../lib/ writeread_test.c -lt2fs -o ../writeread_test -Wall
 	
 check:
 	@var=0;lines=($$(grep -iRl "NOT OK" ./log/));for x in $${lines[@]}; do if [ $$var = 0 ]; then printf "\nERRORS FOUND IN:\n"; fi; var=$$(($$var + 1)); printf "$$x\n"; done; if [ $$var = 0 ]; then printf "\nNO ERRORS WERE FOUND\nALL OK\n"; else printf "\nERRORS WERE FOUND\nCHECK THE LOGS AND CORRECT IT\n"; fi;

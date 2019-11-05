@@ -183,7 +183,7 @@ INF UFRGS - Operating Systems 1 Coursework
    5. Decrement the SWOFL entry. If it reaches zero, remove it from the list. **Careful not to break the list.**
    6. Return Success.
    
-### 10. Read2:  
+### 10. ~Read2:~    
    0. Check if a partition is mounted and THE Directory is open. (Id 5: this repeats in another function)
    1. Check if the Buffer pointer is not NULL and Size is not negative. (Id 3: this repeats in another function)
    2. Check if the FILE2 descriptor is valid. (Id 10: this repeats in another function)
@@ -194,7 +194,7 @@ INF UFRGS - Operating Systems 1 Coursework
    6. Update the Current Position of the PWOFL entry.
    7. Return the number of bytes read.
 
-### 11. Write2:
+### 11. ~Write2:~  
    0. Check if a partition is mounted and THE Directory is open. (Id 5: this repeats in another function)
    1. Check if the Buffer pointer is not NULL and Size is not negative. (Id 3: this repeats in another function)
    2. Check if the FILE2 descriptor is valid. (Id 10: this repeats in another function)
