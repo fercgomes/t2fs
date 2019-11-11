@@ -1050,6 +1050,80 @@ int sln2 (char *linkname, char *filename) {
 Função:	Função usada para criar um caminho alternativo (hardlink)
 -----------------------------------------------------------------------------*/
 int hln2(char *linkname, char *filename) {
+
+	/* 
+	Hardlink aponta diretamente para o inode do arquivo destino.
+	O nome do link é 'linkname' e aponta para o arquivo 'filename'.
+
+	1. Buscar arquivo associado ao nome 'filename' (buscar inode)
+	2. Criar nova entrada de diretório para o hlink
+	3. Criar inode para o hlink
+	4. Apontar inode do hlink para o inode do 'filename'
+	5. Incrementar contador de referência do 'filename'
+	
+	*/
+
+	if (!is_mounted()) {
+		printf("Must have a partition mounted before operating a file.\n");
+		return -1;
+	}
+	
+	BYTE _filename[51];
+	if(check_filename(_filename, (BYTE*)filename)) {
+		printf("The filename provided is invalid\n");
+		return -1;
+	}
+	
+	SWOFL_ENTRY* swofl_e;
+	
+	if (!find_open_file(_filename, &swofl_e)) {
+		printf("The file you are trying to create is open\n\tCouldn't create the file\n");
+		return -1;
+	}
+	
+	DIRENT2 dentry;
+	INODE2 inode;
+	int dentry_block;
+	int dentry_pos;
+
+	DWORD target_inode;
+
+	/* Look for file with name 'filename' */
+	if (!search_file_in_dir((char*)_filename, &dentry, &dentry_block, &dentry_pos)) {
+		/* File exists */
+		target_inode = dentry.inodeNumber;
+
+		/* Load target inode */
+		if (load_inode(dentry, &inode)) {
+			printf("Unexpected Error occurred at create2: CLDIND\n\tCouldn't create the file\n");
+			return -1;
+		}
+
+		/* Increment reference counter */
+		inode.RefCounter++;
+
+		/* Save inode */
+		write_inode(dentry, inode);
+
+		/* Create new dentry */
+		if (new_dentry(&dentry)) {
+			printf("Unexpected Error occurred at create2: CNDTR\n\tCouldn't create the file\n");
+			return -1;
+		}
+		
+		/* Set name and type to sym link */
+		memcpy((void*)dentry.name, (void*)linkname, 51);
+		dentry.TypeVal = 0x02;
+		dentry.inodeNumber = target_inode;
+		
+		if (write_dentry_to_dir(dentry)) {
+			printf("Error creating file. Is the directory full?\n");
+			return -1;
+		}
+
+	}
+
+	/* File doesn't exists */
 	return -1;
 }
 
@@ -2094,14 +2168,20 @@ int delete_dentry(DIRENT2* dentry) {
 	INODE2 inode;
 	if (load_inode(*dentry, &inode)) return -1;
 	
-	if (inode.RefCounter > 1) return -1;
-	
-	if (remove_inode_content(&inode)) return -1;
-	
-	if (deallocate_inode(dentry->inodeNumber)) return -1;	
-	
+	/* Some file is still referencing this inode, so we keep it */
+	if (inode.RefCounter > 1) {
+		inode.RefCounter--;
+		write_inode(*dentry, inode);
+	}
+	/* No one is referencing the inode, get rid of it */
+	else {
+		if (remove_inode_content(&inode)) return -1;
+		
+		if (deallocate_inode(dentry->inodeNumber)) return -1;	
+	}	
+
 	if (empty_dentry(dentry)) return -1;
-	
+
 	return 0;
 }
 
