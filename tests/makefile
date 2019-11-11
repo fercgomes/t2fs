@@ -40,7 +40,7 @@ compile:
 	@$(CC) $(CFLAGS) -I ../include/ -L ../lib/ createdelete_test.c -lt2fs -o ../createdelete_test -Wall
 	@$(CC) $(CFLAGS) -I ../include/ -L ../lib/ openclose_test.c -lt2fs -o ../openclose_test -Wall
 	@$(CC) $(CFLAGS) -I ../include/ -L ../lib/ writeread_test.c -lt2fs -o ../writeread_test -Wall
-	
+
 check:
 	@var=0;lines=($$(grep -iRl "NOT OK" ./log/));for x in $${lines[@]}; do if [ $$var = 0 ]; then printf "\nERRORS FOUND IN:\n"; fi; var=$$(($$var + 1)); printf "$$x\n"; done; if [ $$var = 0 ]; then printf "\nNO ERRORS WERE FOUND\nALL OK\n"; else printf "\nERRORS WERE FOUND\nCHECK THE LOGS AND CORRECT IT\n"; fi;
 	
