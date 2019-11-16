@@ -92,6 +92,21 @@ int search_file_in_dir(char* filename, DIRENT2* dentry, int* dentry_block, int* 
 int write_to_invalid_dentry_in_dir(DIRENT2 dentry); // Busca uma dentry inválida no diretório e escreve sobre ela. Retorna zero se sucesso, outro número se fracasso. (NÃO USAR)
 int write_dentry_to_dir(DIRENT2 dentry); // Escreve uma dentry no diretório. Retorna zero se sucesso, outro número se fracasso.
 
+/*
+	Verifica se o arquivo com nome 'filename'
+	é um symlink.
+	Retorna 1 se o arquivo é symlink e 0 caso contrário.
+*/
+int is_symlink(const char* filename);
+
+/* 
+	Busca o nome do arquivo ao qual o symlink com nome 'filename' aponta.
+	Escreve o nome do arquivo em 'real_filename'.
+*/
+int fetch_symlink(const char* filename, char** real_filename);
+
+inline void swap_filename(char* a, char* b) { char* tmp; tmp = a; a = b; b = tmp; }
+
 /*------------------ FORWARD DECLARATIONS --------*/
 void print_superblock(SUPERBLOCK spb);  // Defined at utils.h
 
@@ -511,6 +526,19 @@ FILE2 open2 (char *filename) {
 		printf("The filename provided is invalid\n");
 		return -1;
 	}
+
+	#ifdef SYMLINK_IMPLEMENTED
+	char* real_filename = (char*)malloc(51);
+	if(is_symlink(_filename)) {
+		/* File is symlink, fetch real filename */
+		if(fetch_symlink(_filename, &real_filename)) {
+			printf("open2: error fetching symlink.\n");
+			return -1;
+		} else {
+			swap_filename(_filename, real_filename);
+		}
+	}
+	#endif
 	
 	SWOFL_ENTRY* swofl_e = NULL;
 	PWOFL_ENTRY* pwofl_e = malloc(sizeof(PWOFL_ENTRY));
@@ -520,15 +548,21 @@ FILE2 open2 (char *filename) {
 		return -1;
 	}
 	
+	/* Look for open file in system wide open file list */
 	if (!find_open_file(_filename, &swofl_e)) {
+		/* Found open file in system wide list */
 		if (create_pwofl_entry(pwofl_e, swofl_e)) {
 			printf("Unexpected Error occurred at open2: OCPWOFl\n\tCouldn't open the file\n");
 			free(pwofl_e);
 			return -1;
 		}
+
+		/* Create entry in process wide list */
 		return pwofl_e->id;
 	}
 	
+	/* No open file in system wide list */
+
 	int dt_block;
 	int dt_pos;	
 	DIRENT2* dentry = malloc(sizeof(DIRENT2));
@@ -2331,4 +2365,49 @@ int write_dentry_to_dir(DIRENT2 dentry) {
 	}
 	
 	return -1;
+}
+
+int is_symlink(const char* filename) {
+	/* Check if file is symlink */
+	DIRENT2 dentry;
+	int dentry_block, dentry_pos;
+
+	search_file_in_dir(filename, &dentry, &dentry_block, &dentry_pos);
+
+	if(dentry.TypeVal == 0x02)
+		return 1;
+	else
+		return 0;
+}
+
+int fetch_symlink(const char* filename, char** real_filename) {
+	DIRENT2 dentry;
+	INODE2 inode;
+	BLOCKBUFFER buf = new_block_buffer();
+	int dentry_block, dentry_pos, block_id;
+	const size_t nameSize = 51;
+
+	if(search_file_in_dir(filename, &dentry, &dentry_block, &dentry_pos)) {
+		printf("fetch_symlink: error while searching for file.\n");
+		free_block_buffer(buf);
+		return -1;
+	}
+
+	if(load_inode(dentry, &inode)) {
+		printf("fetch_symlink: error while loading inode.\n");
+		free_block_buffer(buf);
+		return -1;
+	}
+
+	if(load_inode_block(inode, buf, 0, &block_id)) {
+		printf("fetch_symlink: error while loading inode block.\n");
+		free_block_buffer(buf);
+		return -1;
+	}
+
+	memcpy((void*)*real_filename, (void*)buf, nameSize);
+
+	free_block_buffer(buf);
+
+	return 0;
 }
