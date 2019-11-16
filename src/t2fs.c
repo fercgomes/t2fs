@@ -1095,7 +1095,7 @@ int hln2(char *linkname, char *filename) {
 
 		/* Load target inode */
 		if (load_inode(dentry, &inode)) {
-			printf("Unexpected Error occurred at create2: CLDIND\n\tCouldn't create the file\n");
+			printf("Unexpected Error occurred at hlink: CLDIND\n\tCouldn't create the file\n");
 			return -1;
 		}
 
@@ -1107,7 +1107,7 @@ int hln2(char *linkname, char *filename) {
 
 		/* Create new dentry */
 		if (new_dentry(&dentry)) {
-			printf("Unexpected Error occurred at create2: CNDTR\n\tCouldn't create the file\n");
+			printf("Unexpected Error occurred at hlin: CNDTR\n\tCouldn't create the file\n");
 			return -1;
 		}
 		
