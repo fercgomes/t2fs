@@ -1113,7 +1113,7 @@ int hln2(char *linkname, char *filename) {
 		
 		/* Set name and type to sym link */
 		memcpy((void*)dentry.name, (void*)linkname, 51);
-		dentry.TypeVal = 0x02;
+		dentry.TypeVal = 0x01;
 		dentry.inodeNumber = target_inode;
 		
 		if (write_dentry_to_dir(dentry)) {
@@ -1121,6 +1121,7 @@ int hln2(char *linkname, char *filename) {
 			return -1;
 		}
 
+		return 0;
 	}
 
 	/* File doesn't exists */
