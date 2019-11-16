@@ -2452,7 +2452,13 @@ int is_symlink(const char* filename) {
 	DIRENT2 dentry;
 	int dentry_block, dentry_pos;
 
-	search_file_in_dir(filename, &dentry, &dentry_block, &dentry_pos);
+	BYTE _filename[51];
+	if(check_filename(_filename, (BYTE*)filename)) {
+		printf("The filename provided is invalid\n");
+		return -1;
+	}	
+
+	search_file_in_dir((char*)_filename, &dentry, &dentry_block, &dentry_pos);
 
 	if(dentry.TypeVal == 0x02)
 		return 1;
@@ -2467,7 +2473,14 @@ int fetch_symlink(const char* filename, char** real_filename) {
 	int dentry_block, dentry_pos, block_id;
 	const size_t nameSize = 51;
 
-	if(search_file_in_dir(filename, &dentry, &dentry_block, &dentry_pos)) {
+	
+	BYTE _filename[51];
+	if(check_filename(_filename, (BYTE*)filename)) {
+		printf("The filename provided is invalid\n");
+		return -1;
+	}	
+
+	if(search_file_in_dir((char*)_filename, &dentry, &dentry_block, &dentry_pos)) {
 		printf("fetch_symlink: error while searching for file.\n");
 		free_block_buffer(buf);
 		return -1;
