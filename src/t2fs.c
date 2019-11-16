@@ -1077,7 +1077,88 @@ int closedir2 (void) {
 Função:	Função usada para criar um caminho alternativo (softlink)
 -----------------------------------------------------------------------------*/
 int sln2 (char *linkname, char *filename) {
-	return -1;
+	
+	const size_t nameSize = 51;
+
+	if (!is_mounted()) {
+		printf("Must have a partition mounted before operating a file.\n");
+		return -1;
+	}
+	
+	// Check if the filename is valid
+	BYTE _filename[51];
+	if(check_filename(_filename, (BYTE*)filename)) {
+		printf("The filename provided is invalid\n");
+		return -1;
+	}
+	// Check if the linkname is valid	
+	BYTE _linkname[51];
+	if(check_filename(_linkname, (BYTE*)linkname)) {
+		printf("The linkname provided is invalid\n");
+		return -1;
+	}
+	
+	DIRENT2 dentry;
+	INODE2 inode;
+	int dt_block;
+	int dt_pos;
+	
+	if (!(search_file_in_dir((char*)_linkname, dentry, &dt_block, &dt_pos))) {
+		printf("A file with this linkname already exists\n");
+		free(dentry);
+		return -1;
+	}
+	
+	if (search_file_in_dir((char*)_filename, dentry, &dt_block, &dt_pos)) {
+		printf("Couldn't find a file with the given name\n");
+		free(dentry);
+		return -1;
+	}
+	
+	if (new_dentry(&dentry)) {
+		printf("Unexpected Error occurred: CNDTR\n\tCouldn't create the file\n");
+		return -1;
+	}
+	
+	memcpy((void*)dentry.name, (void*)_linkname, 51);
+	dentry.TypeVal = 0x02;
+	
+	
+	// Allocate an i-node and a Free Block. Use predefined functions! Or create them!
+
+	BLOCKBUFFER bbuffer = new_block_buffer();
+	int bbuffer_id;
+	
+	if (write_new_block(bbuffer, &bbuffer_id)){
+		printf("Error getting a new block buffer.");
+		return -1;
+	}
+	
+	if (write_new_inode(dentry)){
+		printf("Couldn't allocate a new inode");
+		return -1;
+	}
+	
+	//Fill the allocated block with the string containing the file direction. The "/file" string, not a pointer to the i-node!
+	memcpy((void*)*bbuffer, (void*)_filename, nameSize);
+
+	
+	//Fill i-node with the necessary info. Use predefined functions! Or create them!
+	inode.blockFileSize = "0x01";
+	inode.dataPtr = &bbuffer;
+	inode.bytesFileSize = sizeof(bbuffer) /*String size in bytes*/;
+	inode.RefCounter = 1;
+	
+	
+	//Create a dentry and add it to THE Directory. Create a function for this SL dentry creation!
+	
+	if (write_dentry_to_dir(dentry)) {
+		printf("Error creating file.\n");
+		return -1;
+	}
+	
+	//Return Success.
+	return 0;
 }
 
 /*-----------------------------------------------------------------------------
