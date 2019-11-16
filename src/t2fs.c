@@ -1139,7 +1139,7 @@ int sln2 (char *linkname, char *filename) {
 	
 
 	//Fill the allocated block with the string containing the file direction. The "/file" string, not a pointer to the i-node!
-	memcpy((void*)*bbuffer, (void*)_filename, nameSize);
+	memcpy((void*)bbuffer, (void*)_filename, nameSize);
 	
 	//Fill i-node with the necessary info. Use predefined functions! Or create them!
 	if(append_block_to_inode(&inode, bbuffer)){
