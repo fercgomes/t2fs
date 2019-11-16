@@ -1103,15 +1103,15 @@ int sln2 (char *linkname, char *filename) {
 	int dt_block;
 	int dt_pos;
 	
-	if (!(search_file_in_dir((char*)_linkname, dentry, &dt_block, &dt_pos))) {
+	if (!(search_file_in_dir((char*)_linkname, &dentry, &dt_block, &dt_pos))) {
 		printf("A file with this linkname already exists\n");
-		free(dentry);
+		free(&dentry);
 		return -1;
 	}
 	
-	if (search_file_in_dir((char*)_filename, dentry, &dt_block, &dt_pos)) {
+	if (search_file_in_dir((char*)_filename, &dentry, &dt_block, &dt_pos)) {
 		printf("Couldn't find a file with the given name\n");
-		free(dentry);
+		free(&dentry);
 		return -1;
 	}
 	
@@ -1126,6 +1126,11 @@ int sln2 (char *linkname, char *filename) {
 	
 	// Allocate an i-node and a Free Block. Use predefined functions! Or create them!
 
+		if (write_new_inode(&dentry)){
+		printf("Couldn't allocate a new inode");
+		return -1;
+	}
+
 	BLOCKBUFFER bbuffer = new_block_buffer();
 	int bbuffer_id;
 	
@@ -1134,21 +1139,15 @@ int sln2 (char *linkname, char *filename) {
 		return -1;
 	}
 	
-	if (write_new_inode(dentry)){
-		printf("Couldn't allocate a new inode");
-		return -1;
-	}
-	
+
 	//Fill the allocated block with the string containing the file direction. The "/file" string, not a pointer to the i-node!
 	memcpy((void*)*bbuffer, (void*)_filename, nameSize);
-
 	
 	//Fill i-node with the necessary info. Use predefined functions! Or create them!
-	inode.blockFileSize = "0x01";
-	inode.dataPtr = &bbuffer;
-	inode.bytesFileSize = sizeof(bbuffer) /*String size in bytes*/;
-	inode.RefCounter = 1;
-	
+	if(append_block_to_inode(&inode, bbuffer)){
+		printf("Error appending block to the inode");
+		return -1;
+	}
 	
 	//Create a dentry and add it to THE Directory. Create a function for this SL dentry creation!
 	
@@ -1157,7 +1156,9 @@ int sln2 (char *linkname, char *filename) {
 		return -1;
 	}
 	
+	
 	//Return Success.
+	free_block_buffer (&bbuffer);
 	return 0;
 }
 
