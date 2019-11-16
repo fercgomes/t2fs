@@ -1105,13 +1105,11 @@ int sln2 (char *linkname, char *filename) {
 	
 	if (!(search_file_in_dir((char*)_linkname, &dentry, &dt_block, &dt_pos))) {
 		printf("A file with this linkname already exists\n");
-		free(&dentry);
 		return -1;
 	}
 	
 	if (search_file_in_dir((char*)_filename, &dentry, &dt_block, &dt_pos)) {
 		printf("Couldn't find a file with the given name\n");
-		free(&dentry);
 		return -1;
 	}
 	
@@ -1126,14 +1124,14 @@ int sln2 (char *linkname, char *filename) {
 	
 	// Allocate an i-node and a Free Block. Use predefined functions! Or create them!
 
-		if (write_new_inode(&dentry)){
+	if (write_new_inode(&dentry)){
 		printf("Couldn't allocate a new inode");
 		return -1;
 	}
 
 	BLOCKBUFFER bbuffer = new_block_buffer();
 	int bbuffer_id;
-	
+
 	if (write_new_block(bbuffer, &bbuffer_id)){
 		printf("Error getting a new block buffer.");
 		return -1;
@@ -1158,7 +1156,7 @@ int sln2 (char *linkname, char *filename) {
 	
 	
 	//Return Success.
-	free_block_buffer (&bbuffer);
+	free_block_buffer (bbuffer);
 	return 0;
 }
 
