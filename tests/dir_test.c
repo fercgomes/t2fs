@@ -8,9 +8,9 @@ int append_block_to_inode(INODE2* inode, BLOCKBUFFER block); // Escreve um bloco
 int load_inode_block(INODE2 inode, BLOCKBUFFER block_buffer, unsigned int block_pos, unsigned int* block_id); // Carrega um dado bloco do inode. Retorna zero se sucesso, outro número se falha. - Usada para reads
 int write_inode_block(INODE2* inode, BLOCKBUFFER block, unsigned int block_pos); // Escreve um bloco na posição designada. Retorna zero se sucesso, outro número se falha - Usada para writes
 
-int search_file_in_dir(char* filename, DIRENT2* dentry, int* dentry_block, int* dentry_pos); // Busca uma dentry com o dado nome e retorna no ponteiro para dentry. Retorna zero se sucesso, outro número se fracasso.
-int write_to_invalid_dentry_in_dir(DIRENT2 dentry); // Busca uma dentry inválida no diretório e escreve sobre ela. Retorna zero se sucesso, outro número se fracasso. (NÃO USAR)
-int write_dentry_to_dir(DIRENT2 dentry); // Escreve uma dentry no diretório. Retorna zero se sucesso, outro número se fracasso.
+int search_file_in_dir(char* filename, DENTRY2* dentry, int* dentry_block, int* dentry_pos); // Busca uma dentry com o dado nome e retorna no ponteiro para dentry. Retorna zero se sucesso, outro número se fracasso.
+int write_to_invalid_dentry_in_dir(DENTRY2 dentry); // Busca uma dentry inválida no diretório e escreve sobre ela. Retorna zero se sucesso, outro número se fracasso. (NÃO USAR)
+int write_dentry_to_dir(DENTRY2 dentry); // Escreve uma dentry no diretório. Retorna zero se sucesso, outro número se fracasso.
 
 typedef struct s_partition PARTITION;
 typedef struct s_thedir THEDIR;
@@ -32,8 +32,9 @@ int main() {
 	int max_dirs = part.dirs_in_block*max_blocks;
 	BLOCKBUFFER block_buffer[max_blocks];
 	
-	DIRENT2 dentry[max_dirs];
-	DIRENT2 dummydentry;
+	DENTRY2 dentry[max_dirs];
+	DENTRY2 dummydentry;
+	DIRENT2 dummydirent;
 	
 	int i;
 	for (i = 0; i < max_blocks; i++) {
@@ -45,7 +46,7 @@ int main() {
 		sprintf(dentry[i].name, "%d", i);
 		printf("%s\n", dentry[i].name);
 		dentry[i].TypeVal = 0x01;
-		memcpy((void*)&block_buffer[(i/part.dirs_in_block)][(i%part.dirs_in_block)*sizeof(DIRENT2)], (void*)&dentry[i], sizeof(DIRENT2));
+		memcpy((void*)&block_buffer[(i/part.dirs_in_block)][(i%part.dirs_in_block)*sizeof(DENTRY2)], (void*)&dentry[i], sizeof(DENTRY2));
 	}
 	
 	printf("Openning dir: %s\n", opendir2() == 0 ? "OK" : "NOT OK");
@@ -66,8 +67,8 @@ int main() {
 	printf("\tChecking for filenames: Exp: %s Read: %s Result: %s\n", "3", dummydentry.name, strcmp("3", dummydentry.name) == 0 ? "OK" : "NOT OK");
 	
 	for (i = 0; i < last_block*part.dirs_in_block; i++) {
-		printf("Reading dir: %s\n", readdir2(&dummydentry) == 0 ? "OK" : "NOT OK");
-		printf("Checking data - Exp: %s Read: %s Result: %s\n", dentry[i].name, dummydentry.name, strcmp(dentry[i].name, dummydentry.name) == 0 ? "OK" : "NOT OK");
+		printf("Reading dir: %s\n", readdir2(&dummydirent) == 0 ? "OK" : "NOT OK");
+		printf("Checking data - Exp: %s Read: %s Result: %s\n", dentry[i].name, dummydirent.name, strcmp(dentry[i].name, dummydirent.name) == 0 ? "OK" : "NOT OK");
 	}
 	
 	printf("Closing dir: %s\n", closedir2() == 0 ? "OK" : "NOT OK");
@@ -109,7 +110,7 @@ int main() {
 	}
 	
 	if (!load_inode_block(thedir->inode, bbuffer, (unsigned int)1, &bid)) {
-		memcpy((void*)bbuffer, (void*)&dummydentry, sizeof(DIRENT2));
+		memcpy((void*)bbuffer, (void*)&dummydentry, sizeof(DENTRY2));
 		
 		if (write_inode_block(&(thedir->inode), bbuffer, bid)) printf("Couldn't write block to inode: NOT OK\n");
 		

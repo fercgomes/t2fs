@@ -6,14 +6,14 @@
 typedef struct sFila2 FILA2;
 typedef struct s_swofl_entry SWOFL_ENTRY;
 typedef struct s_pwofl_entry PWOFL_ENTRY;
-typedef struct t2fs_record DIRENT2;
+typedef struct t2fs_record DENTRY2;
 typedef struct s_partition PARTITION;
 
 int swofl_init();
 int swofl_destroy();
 int pwofl_init();
 int pwofl_destroy();
-int create_swofl_entry(SWOFL_ENTRY* swofl_entry, DIRENT2* dir_entry);
+int create_swofl_entry(SWOFL_ENTRY* swofl_entry, DENTRY2* dir_entry);
 int delete_swofl_entry(SWOFL_ENTRY* entry);
 int create_pwofl_entry(PWOFL_ENTRY* pwofl_entry, SWOFL_ENTRY* swofl_entry);
 int delete_pwofl_entry(PWOFL_ENTRY* entry);
@@ -40,7 +40,7 @@ int main() {
 	printf("SWOFL creation2: %s\n", swofl_init() ? "NOT OK" : "OK");
 	printf("PWOFL creation2: %s\n", pwofl_init() ? "NOT OK" : "OK");
 	
-	DIRENT2* fakedir[5];
+	DENTRY2* fakedir[5];
 	SWOFL_ENTRY* swofl_entry[5];
 	PWOFL_ENTRY* pwofl_entry[5];
 	
@@ -48,7 +48,7 @@ int main() {
 	unsigned char namefortest[51] = "NAMEFORTEST";
 	int i;
 	for (i = 0; i < 5; i++) {
-		fakedir[i] = malloc(sizeof(DIRENT2));
+		fakedir[i] = malloc(sizeof(DENTRY2));
 		swofl_entry[i] = malloc(sizeof(SWOFL_ENTRY));
 		pwofl_entry[i] = malloc(sizeof(PWOFL_ENTRY));
 		printf("\tCreating swofl entry %d: %s\n", i, create_swofl_entry(swofl_entry[i], fakedir[i]) ? "NOT OK" : "OK");

@@ -2,17 +2,20 @@
 
 #ifndef __LIBT2FS___
 #define __LIBT2FS___
+
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
 
-#include <t2disk.h>
 #include <bitmap2.h>
 #include <apidisk.h>
 #include <support.h>
 
-typedef struct s_mbr MBR;
+#define	TYPEVAL_INVALIDO	0x00
+#define	TYPEVAL_REGULAR		0x01
+#define	TYPEVAL_LINK		0x02
 
 typedef int FILE2;
 
@@ -20,49 +23,15 @@ typedef unsigned char BYTE;
 typedef unsigned short int WORD;
 typedef unsigned int DWORD;
 
-#define	TYPEVAL_INVALIDO	0x00
-#define	TYPEVAL_REGULAR		0x01
-#define	TYPEVAL_LINK		0x02
-
-// Bitmap handles
-#define BM_BLOCK 1
-#define BM_INODE 0
 
 #pragma pack(push, 1)
 
-/** Superbloco  - 19/2 */
-typedef struct t2fs_superbloco {
-	char    id[4];					/** "T2FS" */
-	WORD    version;				/** 0x7E32 */
-	WORD    superblockSize;			/** 1 = Número de blocos ocupados pelo superbloco */
-	WORD	freeBlocksBitmapSize;	/** Número de blocos do bitmap de blocos de dados */
-	WORD	freeInodeBitmapSize;	/** Número de blocos do bitmap de i-nodes */
-	WORD	inodeAreaSize;			/** Número de blocos reservados para os i-nodes */
-	WORD	blockSize;				/** Número de setores que formam um bloco */
-	DWORD	diskSize;				/** Número total de blocos da partição */
-	DWORD	Checksum;				/** Soma dos 5 primeiros inteiros de 32 bits do superbloco */
-} SUPERBLOCK;
-
-
-/** Registro de diretório (entrada de diretório) - 19/2 */
-typedef struct t2fs_record {
-	BYTE    TypeVal;
-	char    name[51];
-	DWORD	Nao_usado[2];
-	DWORD	inodeNumber;
+#define MAX_FILE_NAME_SIZE 255
+typedef struct s_dirent {
+    char    name[MAX_FILE_NAME_SIZE+1]; /* Nome do arquivo cuja entrada foi lida do disco      */
+    BYTE    fileType;                   /* Tipo do arquivo: regular (0x01) ou diretório (0x02) */
+    DWORD   fileSize;                   /* Numero de bytes do arquivo                          */
 } DIRENT2;
-
-
-/** i-node - 19/2 */
-typedef struct t2fs_inode {
-	DWORD	blocksFileSize;
-	DWORD	bytesFileSize;
-	DWORD	dataPtr[2];
-	DWORD	singleIndPtr;
-	DWORD	doubleIndPtr;
-	DWORD	RefCounter;
-	DWORD	reservado;
-} INODE2;
 
 #pragma pack(pop)
 
@@ -271,16 +240,83 @@ int hln2(char *linkname, char *filename);
 
 /*------------------------------- FIM DA API --------------------------------*/ 
 
+typedef struct s_mbr MBR;
+typedef struct t2fs_superbloco SUPERBLOCK;
+typedef struct t2fs_record DENTRY2;
+typedef struct t2fs_inode INODE2;
+typedef struct s_thedir THEDIR;
+typedef struct s_swofl_entry SWOFL_ENTRY;
+typedef struct s_pwofl_entry PWOFL_ENTRY;
+typedef struct s_partition PARTITION;
+
+#pragma pack(push, 1)
+
+/** Dados do MBR */
+typedef struct s_mbr{
+	WORD diskVersion;
+	WORD sectorSize;
+	WORD positionPartitionZero;
+	WORD totalNumberPartitions;
+	DWORD partitionZeroFirstSectorAddr;
+	DWORD partitionZeroLastSectorAddr;
+	char partitionZeroName[24];
+	DWORD partitionOneFirstSectorAddr;
+	DWORD partitionOneLastSectorAddr;
+	char partitionOneName[24];
+	DWORD partitionTwoFirstSectorAddr;
+	DWORD partitionTwoLastSectorAddr;
+	char partitionTwoName[24];
+	DWORD partitionThreeFirstSectorAddr;
+	DWORD partitionThreeLastSectorAddr;
+	char partitionThreeName[24];
+	BYTE notUsed[120];
+} MBR;
+
+/** Superbloco  - 19/2 */
+typedef struct t2fs_superbloco {
+	char    id[4];					/** "T2FS" */
+	WORD    version;				/** 0x7E32 */
+	WORD    superblockSize;			/** 1 = Número de blocos ocupados pelo superbloco */
+	WORD	freeBlocksBitmapSize;	/** Número de blocos do bitmap de blocos de dados */
+	WORD	freeInodeBitmapSize;	/** Número de blocos do bitmap de i-nodes */
+	WORD	inodeAreaSize;			/** Número de blocos reservados para os i-nodes */
+	WORD	blockSize;				/** Número de setores que formam um bloco */
+	DWORD	diskSize;				/** Número total de blocos da partição */
+	DWORD	Checksum;				/** Soma dos 5 primeiros inteiros de 32 bits do superbloco */
+} SUPERBLOCK;
+
+typedef struct t2fs_record {
+	BYTE    TypeVal;
+	char    name[51];
+	DWORD	Nao_usado[2];
+	DWORD	inodeNumber;
+} DENTRY2;
+
+
+/** i-node - 19/2 */
+typedef struct t2fs_inode {
+	DWORD	blocksFileSize;
+	DWORD	bytesFileSize;
+	DWORD	dataPtr[2];
+	DWORD	singleIndPtr;
+	DWORD	doubleIndPtr;
+	DWORD	RefCounter;
+	DWORD	reservado;
+} INODE2;
+
+
 typedef struct s_thedir {
 	INODE2 inode;
 	unsigned int current_entry;
 } THEDIR;
 
+
 typedef struct s_swofl_entry {
-	DIRENT2* dir_entry;
+	DENTRY2* dir_entry;
 	unsigned int refs;
 	NODE2* swofl_container;
 } SWOFL_ENTRY;
+
 
 typedef struct s_pwofl_entry {
 	FILE2 id;
@@ -288,6 +324,7 @@ typedef struct s_pwofl_entry {
 	unsigned int current_position;
 	NODE2* pwofl_container;
 } PWOFL_ENTRY;
+
 
 typedef struct s_partition {
 	unsigned int first_sector;
@@ -305,8 +342,11 @@ typedef struct s_partition {
 	int dir_open;
 } PARTITION;
 
+
 typedef BYTE SECTOR[SECTOR_SIZE];
 typedef BYTE* BLOCKBUFFER;
+
+#pragma pack(pop)
 
 #endif
 

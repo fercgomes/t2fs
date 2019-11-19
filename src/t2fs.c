@@ -3,21 +3,20 @@
 */
 #include "t2fs.h"
 
-const int _inodes_per_sector = SECTOR_SIZE/sizeof(INODE2);
-const int _blockid_per_sector = SECTOR_SIZE/sizeof(DWORD);
-const int _dirs_in_sector = SECTOR_SIZE/sizeof(DIRENT2);
+// Bitmap handles
+#define BM_BLOCK 1
+#define BM_INODE 0
 
 /*---------------- ESTRUTURAS USADAS NO SISTEMA -----------*/
 
+typedef struct s_mbr MBR;
+typedef struct t2fs_superbloco SUPERBLOCK;
+typedef struct t2fs_record DENTRY2;
+typedef struct t2fs_inode INODE2;
 typedef struct s_thedir THEDIR;
-
 typedef struct s_swofl_entry SWOFL_ENTRY;
-
-static FILE2 pwofl_id = 0;
 typedef struct s_pwofl_entry PWOFL_ENTRY;
-
 typedef struct s_partition PARTITION;
-
 typedef BYTE SECTOR[SECTOR_SIZE];
 typedef BYTE* BLOCKBUFFER;
 
@@ -26,6 +25,12 @@ PARTITION part;
 THEDIR* thedir = NULL;
 FILA2* SWOFL = NULL;  	// System Wide Open File List
 FILA2* PWOFL = NULL;		// Process Wide Open File List
+
+const int _inodes_per_sector = SECTOR_SIZE/sizeof(INODE2);
+const int _blockid_per_sector = SECTOR_SIZE/sizeof(DWORD);
+const int _dirs_in_sector = SECTOR_SIZE/sizeof(DENTRY2);
+
+static FILE2 pwofl_id = 0;
 
 /*------------------ FUNÇÕES FORA DA API -----------------*/
 
@@ -40,7 +45,7 @@ int swofl_init(); // Inicializa a system wide open file list - Usada na opendir
 int swofl_destroy(); // Destroi a SWOFL - Usada na closedir !!!NAO GARANTE QUE OS ARQUIVOS FORAM SALVOS. TODA ESCRITA DEVE SER REALIZADA POR CREATE/WRITE, NAO AQUI
 int pwofl_init(); // Inicializa a process wide open file list - Usada na opendir
 int pwofl_destroy(); // Destroi a PWOFL - Usada na closedir !!!NAO GARANTE QUE OS ARQUIVOS FORAM SALVOS. TODA ESCRITA DEVE SER REALIZADA POR CREATE/WRITE, NAO AQUI
-int create_swofl_entry(SWOFL_ENTRY* swofl_entry, DIRENT2* dir_entry); // Cria uma entrada para a SWOFL - e adiciona na lista
+int create_swofl_entry(SWOFL_ENTRY* swofl_entry, DENTRY2* dir_entry); // Cria uma entrada para a SWOFL - e adiciona na lista
 int delete_swofl_entry(SWOFL_ENTRY* entry); // Remove uma entrada da SWOFL - e remove da lista (NAO USAR MANUALMENTE)
 int remove_node_swofl(NODE2* node); // Remove um nodo da lista SWOFL (NAO USAR MANUALMENTE)
 int create_pwofl_entry(PWOFL_ENTRY* pwofl_entry, SWOFL_ENTRY* swofl_entry); // Cria uma entrada para a PWOFL - Usada para abrir arquivo
@@ -57,9 +62,9 @@ int allocate_inode(int id); // Retorna zero se sucesso, outro número se fracass
 int deallocate_inode(int id); // Retorna zero se sucesso, outro número se fracasso (erro ao desalocar inode não alocado) - Usar na delete_inode
 unsigned int inodeid_to_sector(int id); // Retorna o número do setor (RELATIVO A A PARTIÇÃO) do inode (NAO USAR)
 unsigned int inodeid_in_sector(int id); // Retorna o a posição do inode internamente ao setor (em ID, não em bytes) (NAO USAR)
-int write_new_inode(DIRENT2* dentry); // Cria um inodo vazio e adiciona ao dentry. Retorna 0 se sucesso e outro número se falha. - Usada na criação de arquivo inexistente.
-int write_inode(DIRENT2 dentry, INODE2 inode); // Escreve inode no disco. Retorna 0 se sucesso e outro número se falha. - Usada na atualização de arquivo (OU "CRIAR" ARQUIVO EXISTENTE)
-int load_inode(DIRENT2 dentry, INODE2* inode); // Carrega um inode do disco. Retorna 0 se sucesso e outro número se falha. - Usada na função de ler/escrever arquivo
+int write_new_inode(DENTRY2* dentry); // Cria um inodo vazio e adiciona ao dentry. Retorna 0 se sucesso e outro número se falha. - Usada na criação de arquivo inexistente.
+int write_inode(DENTRY2 dentry, INODE2 inode); // Escreve inode no disco. Retorna 0 se sucesso e outro número se falha. - Usada na atualização de arquivo (OU "CRIAR" ARQUIVO EXISTENTE)
+int load_inode(DENTRY2 dentry, INODE2* inode); // Carrega um inode do disco. Retorna 0 se sucesso e outro número se falha. - Usada na função de ler/escrever arquivo
 
 int localize_freeblock(); // Retorna negativo se erro, zero se não achou ou o ID do bloco (positivo)
 int allocate_freeblock(int id); // Retorna negativo se erro, zero se não achou ou o ID do bloco (positivo)
@@ -84,26 +89,26 @@ int load_block_in_db_indir(int indir_block_id, BLOCKBUFFER buffer, int block_pos
 int load_inode_block(INODE2 inode, BLOCKBUFFER block_buffer, unsigned int block_pos, unsigned int* block_id); // Carrega um dado bloco do inode. Retorna zero se sucesso, outro número se falha. - Usada para reads
 
 int remove_inode_content(INODE2* inode); // Remove todo o conteúdo do i-node, mantendo número de referências. Retorna zero se sucesso, outro número se falha - Usada na create
-int new_dentry(DIRENT2* dentry); // Cria um dentry inválido, de nome vazio e de com um i-node vazio. Retorna zero se sucesso, outro número se falha - Usada na create 
-int empty_dentry(DIRENT2* dentry); // Esvazia um dentry e seta inodeNumber para maior que o máximo da partição (NAO REMOVE INODE). Retorna zero se sucesso, outro número se falha. (NAO USAR)
-int delete_dentry(DIRENT2* dentry); // Remove o conteúdo e i-node de um dentry, invalidando-o. Retorna zero se sucesso, outro número se falha. - Usada na delete
+int new_dentry(DENTRY2* dentry); // Cria um dentry inválido, de nome vazio e de com um i-node vazio. Retorna zero se sucesso, outro número se falha - Usada na create 
+int empty_dentry(DENTRY2* dentry); // Esvazia um dentry e seta inodeNumber para maior que o máximo da partição (NAO REMOVE INODE). Retorna zero se sucesso, outro número se falha. (NAO USAR)
+int delete_dentry(DENTRY2* dentry); // Remove o conteúdo e i-node de um dentry, invalidando-o. Retorna zero se sucesso, outro número se falha. - Usada na delete
 
-int search_file_in_dir(char* filename, DIRENT2* dentry, int* dentry_block, int* dentry_pos); // Busca uma dentry com o dado nome e retorna no ponteiro para dentry. Retorna zero se sucesso, outro número se fracasso.
-int write_to_invalid_dentry_in_dir(DIRENT2 dentry); // Busca uma dentry inválida no diretório e escreve sobre ela. Retorna zero se sucesso, outro número se fracasso. (NÃO USAR)
-int write_dentry_to_dir(DIRENT2 dentry); // Escreve uma dentry no diretório. Retorna zero se sucesso, outro número se fracasso.
+int search_file_in_dir(char* filename, DENTRY2* dentry, int* dentry_block, int* dentry_pos); // Busca uma dentry com o dado nome e retorna no ponteiro para dentry. Retorna zero se sucesso, outro número se fracasso.
+int write_to_invalid_dentry_in_dir(DENTRY2 dentry); // Busca uma dentry inválida no diretório e escreve sobre ela. Retorna zero se sucesso, outro número se fracasso. (NÃO USAR)
+int write_dentry_to_dir(DENTRY2 dentry); // Escreve uma dentry no diretório. Retorna zero se sucesso, outro número se fracasso.
 
 /*
 	Verifica se o arquivo com nome 'filename'
 	é um symlink.
 	Retorna 1 se o arquivo é symlink e 0 caso contrário.
 */
-int is_symlink(const char* filename);
+int is_symlink(char* filename);
 
 /* 
 	Busca o nome do arquivo ao qual o symlink com nome 'filename' aponta.
 	Escreve o nome do arquivo em 'real_filename'.
 */
-int fetch_symlink(const char* filename, char** real_filename);
+int fetch_symlink(char* filename, char** real_filename);
 
 inline void swap_filename(char* a, char* b) { char* tmp; tmp = a; a = b; b = tmp; }
 
@@ -347,7 +352,7 @@ int mount(int partition) {
 	part.max_block_id = spb->diskSize - part.first_block + 1;
 	part.bytes_in_block = spb->blockSize * SECTOR_SIZE;
 	part.blockids_in_block = part.bytes_in_block/sizeof(DWORD);
-	part.dirs_in_block = part.bytes_in_block/sizeof(DIRENT2); // The correct would be dentry, not dir. Too much work to correct
+	part.dirs_in_block = part.bytes_in_block/sizeof(DENTRY2); // The correct would be dentry, not dir. Too much work to correct
 	part.max_dentries = 2 + part.dirs_in_block + part.dirs_in_block*part.dirs_in_block;
 	part.max_blocks_in_inode = 2 + part.blockids_in_block + part.blockids_in_block*part.blockids_in_block;
 	part.dir_open = 0;
@@ -417,7 +422,7 @@ FILE2 create2 (char *filename) {
 		return -1;
 	}
 	
-	DIRENT2 dentry;
+	DENTRY2 dentry;
 	INODE2 inode;
 	int dentry_block;
 	int dentry_pos;
@@ -473,7 +478,7 @@ int delete2 (char *filename) {
 		return -1;
 	}
 	
-	DIRENT2 dentry;
+	DENTRY2 dentry;
 	int dentry_block;
 	int dentry_pos;
 	if (search_file_in_dir((char*)_filename, &dentry, &dentry_block, &dentry_pos)) {
@@ -499,7 +504,7 @@ int delete2 (char *filename) {
 		return -1;
 	}
 	
-	memcpy((void*)&bbuffer[dentry_pos*sizeof(DIRENT2)], (void*)&dentry, sizeof(DIRENT2));
+	memcpy((void*)&bbuffer[dentry_pos*sizeof(DENTRY2)], (void*)&dentry, sizeof(DENTRY2));
 	
 	if (write_inode_block(&(thedir->inode), bbuffer, dentry_block)) {
 		printf("Unexpected Error occurred at delete2: DWTBBF\n\tCouldn't delete the file\n");
@@ -565,7 +570,7 @@ FILE2 open2 (char *filename) {
 
 	int dt_block;
 	int dt_pos;	
-	DIRENT2* dentry = malloc(sizeof(DIRENT2));
+	DENTRY2* dentry = malloc(sizeof(DENTRY2));
 	if (!dentry) {
 		printf("Unexpected Error occurred at open2: ODTMLC\n\tCouldn't open the file\n");
 		free(pwofl_e);
@@ -999,7 +1004,7 @@ int opendir2 (void) {
 /*-----------------------------------------------------------------------------
 Função:	Função usada para ler as entradas de um diretório.
 -----------------------------------------------------------------------------*/
-int readdir2 (DIRENT2 *dentry) {
+int readdir2 (DIRENT2 *dirent) {
 	if (!is_mounted()) {
 		printf("Must have a partition mounted before operating a directory.\n");
 		return -1;
@@ -1009,15 +1014,16 @@ int readdir2 (DIRENT2 *dentry) {
 		return -1;
 	}
 	
-	if (!dentry) {
-		printf("Error at readdir2: invalid dentry provided\n\tBe sure to provide a valid dentry structure before a readdir operation\n");
+	if (!dirent) {
+		printf("Error at readdir2: invalid dirent provided\n\tBe sure to provide a valid dirent structure before a readdir operation\n");
 		return -1;
 	}
 	
-	if (thedir->current_entry*sizeof(DIRENT2) >= thedir->inode.bytesFileSize) {
+	if (thedir->current_entry*sizeof(DENTRY2) >= thedir->inode.bytesFileSize) {
 		printf("No more directory entries to be read\n");
-		dentry->TypeVal = 0x0;
-		dentry->inodeNumber = part.max_inode_id+1;
+		dirent->name[0] = '\0';
+		dirent->fileType = 0x0;
+		dirent->fileSize = part.max_inode_id+1;
 		return -1;
 	}
 	
@@ -1026,30 +1032,49 @@ int readdir2 (DIRENT2 *dentry) {
 	BLOCKBUFFER block_buffer = new_block_buffer();
 	if (!block_buffer) {
 		printf("Unexpected Error at readdir2: RDNBBUFFER\n\tCouldn't read the directory\n");
-		dentry->TypeVal = 0x0;	
-		dentry->inodeNumber = part.max_inode_id+1;
+		dirent->name[0] = '\0';
+		dirent->fileType = 0x0;
+		dirent->fileSize = part.max_inode_id+1;
 		return -1;
 	}
 	
 	unsigned int block_id;
 	if (load_inode_block(thedir->inode, block_buffer, block_pos, &block_id)) {
 		printf("Unexpected Error at readdir2: RDLBBUFFER\n\tCouldn't read the directory\n");
-		dentry->TypeVal = 0x0;
-		dentry->inodeNumber = part.max_inode_id+1;
+		dirent->name[0] = '\0';
+		dirent->fileType = 0x0;
+		dirent->fileSize = part.max_inode_id+1;
 		free_block_buffer(block_buffer);
 		return -1;
 	}
 	
 	unsigned int pos_in_block = thedir->current_entry % part.dirs_in_block;
 	
-	memcpy((void*)dentry, (void*)&block_buffer[pos_in_block*sizeof(DIRENT2)], sizeof(DIRENT2));
+	DENTRY2 dentry;
+	memcpy((void*)&dentry, (void*)&block_buffer[pos_in_block*sizeof(DENTRY2)], sizeof(DENTRY2));
 	
 	free_block_buffer(block_buffer);
 	
 	thedir->current_entry += 1;
 	
-	if (dentry->TypeVal == 0x00) {
-		return readdir2(dentry);
+	if (dentry.TypeVal == 0x00) {
+		dirent->name[0] = '\0';
+		dirent->fileType = 0x0;
+		dirent->fileSize = part.max_inode_id+1;
+		return readdir2(dirent);
+	} else {
+		INODE2 inode;
+		if (load_inode(dentry, &inode)) {
+			printf("Unexpected Error at readdir2: RDLIND\n\tCouldn't read the directory entry\n");
+			dirent->name[0] = '\0';
+			dirent->fileType = 0x0;
+			dirent->fileSize = part.max_inode_id+1;
+			free_block_buffer(block_buffer);
+			return -1;
+		}
+		strcpy(dirent->name, dentry.name);
+		dirent->fileType = dentry.TypeVal;
+		dirent->fileSize = inode.bytesFileSize;
 	}
 	
 	return 0;
@@ -1115,7 +1140,7 @@ int hln2(char *linkname, char *filename) {
 		return -1;
 	}
 	
-	DIRENT2 dentry;
+	DENTRY2 dentry;
 	INODE2 inode;
 	int dentry_block;
 	int dentry_pos;
@@ -1313,7 +1338,7 @@ int pwofl_destroy() {
 	return 0;
 }
 
-int create_swofl_entry(SWOFL_ENTRY* swofl_entry, DIRENT2* dir_entry) {
+int create_swofl_entry(SWOFL_ENTRY* swofl_entry, DENTRY2* dir_entry) {
 	if (!is_mounted() || !dir_entry || !swofl_entry)
 		return -1;
 	
@@ -1555,7 +1580,7 @@ unsigned int inodeid_in_sector(int id) {
 	return id % _inodes_per_sector;
 }
 
-int write_new_inode(DIRENT2* dentry) { // Expects a valid dentry struct	
+int write_new_inode(DENTRY2* dentry) { // Expects a valid dentry struct	
 	if (!dentry) return -1;
 	dentry->inodeNumber = (unsigned int) -1;
 	if (!is_mounted()) return -1;
@@ -1589,7 +1614,7 @@ int write_new_inode(DIRENT2* dentry) { // Expects a valid dentry struct
 	return 0;
 }
 
-int write_inode(DIRENT2 dentry, INODE2 inode) {
+int write_inode(DENTRY2 dentry, INODE2 inode) {
 	if (dentry.inodeNumber > part.max_inode_id)
 		return -1;
 		
@@ -1605,7 +1630,7 @@ int write_inode(DIRENT2 dentry, INODE2 inode) {
 	return 0;
 }
 
-int load_inode(DIRENT2 dentry, INODE2* inode) {
+int load_inode(DENTRY2 dentry, INODE2* inode) {
 	if (!is_mounted()) return -1;
 	if (!inode) return -1;
 	if (dentry.inodeNumber > part.max_inode_id)
@@ -2173,7 +2198,7 @@ int remove_inode_content(INODE2* inode) {
 	return 0;
 }
 
-int new_dentry(DIRENT2* dentry) {
+int new_dentry(DENTRY2* dentry) {
 	if (!dentry) return -1;
 	
 	dentry->TypeVal = 0x0;
@@ -2185,7 +2210,7 @@ int new_dentry(DIRENT2* dentry) {
 	return 0;
 }
 
-int empty_dentry(DIRENT2* dentry) {
+int empty_dentry(DENTRY2* dentry) {
 	if (!dentry) return -1;
 	
 	dentry->TypeVal = 0x0;
@@ -2197,7 +2222,7 @@ int empty_dentry(DIRENT2* dentry) {
 	return 0;
 }
 
-int delete_dentry(DIRENT2* dentry) {
+int delete_dentry(DENTRY2* dentry) {
 	if (!dentry) return -1;
 	
 	INODE2 inode;
@@ -2220,7 +2245,7 @@ int delete_dentry(DIRENT2* dentry) {
 	return 0;
 }
 
-int search_file_in_dir(char* filename, DIRENT2* dentry, int* dentry_block, int* dentry_pos) {
+int search_file_in_dir(char* filename, DENTRY2* dentry, int* dentry_block, int* dentry_pos) {
 	if (!is_mounted()) return -1;
 	if (!dentry) return -1;
 	if (!dentry_block) return -1;
@@ -2236,12 +2261,12 @@ int search_file_in_dir(char* filename, DIRENT2* dentry, int* dentry_block, int* 
 	unsigned int last_bpos = -1;
 	unsigned int pos_in_block;
 	
-	DIRENT2 dummyDentry;
+	DENTRY2 dummyDentry;
 	
 	BYTE filename_[51];
 	if (check_filename(filename_, (BYTE*)filename)) return -1;
 	
-	while(curr_entry*sizeof(DIRENT2) < thedir->inode.bytesFileSize) {
+	while(curr_entry*sizeof(DENTRY2) < thedir->inode.bytesFileSize) {
 		block_pos = curr_entry / part.dirs_in_block;
 	
 		if (block_pos != last_bpos) {
@@ -2250,13 +2275,13 @@ int search_file_in_dir(char* filename, DIRENT2* dentry, int* dentry_block, int* 
 		
 		pos_in_block = curr_entry % part.dirs_in_block;
 		
-		memcpy((void*)&dummyDentry, (void*)&block_buffer[pos_in_block*sizeof(DIRENT2)], sizeof(DIRENT2));
+		memcpy((void*)&dummyDentry, (void*)&block_buffer[pos_in_block*sizeof(DENTRY2)], sizeof(DENTRY2));
 		
 		if (strcmp((char*)filename_, dummyDentry.name) == 0 && (dummyDentry.TypeVal == 0x01 || dummyDentry.TypeVal == 0x02)) {
 			*dentry_block = block_pos;
 			*dentry_pos = pos_in_block;
 			free_block_buffer(block_buffer);
-			memcpy((void*)dentry, (void*)&dummyDentry, sizeof(DIRENT2));
+			memcpy((void*)dentry, (void*)&dummyDentry, sizeof(DENTRY2));
 			return 0;
 		}
 		curr_entry += 1;
@@ -2267,7 +2292,7 @@ int search_file_in_dir(char* filename, DIRENT2* dentry, int* dentry_block, int* 
 	return -1;
 }
 
-int write_to_invalid_dentry_in_dir(DIRENT2 dentry) {
+int write_to_invalid_dentry_in_dir(DENTRY2 dentry) {
 	if (!is_mounted()) return -1;
 	
 	int curr_entry = 0;
@@ -2280,8 +2305,8 @@ int write_to_invalid_dentry_in_dir(DIRENT2 dentry) {
 	unsigned int last_bpos = -1;
 	unsigned int pos_in_block;
 	
-	DIRENT2 dummyDentry;
-	while(curr_entry*sizeof(DIRENT2) < thedir->inode.bytesFileSize) {
+	DENTRY2 dummyDentry;
+	while(curr_entry*sizeof(DENTRY2) < thedir->inode.bytesFileSize) {
 		block_pos = curr_entry / part.dirs_in_block;
 		
 	
@@ -2289,12 +2314,12 @@ int write_to_invalid_dentry_in_dir(DIRENT2 dentry) {
 			if (load_inode_block(thedir->inode, block_buffer, block_pos, &block_id)) return -1;
 		}
 		
-		pos_in_block = (curr_entry % part.dirs_in_block)*sizeof(DIRENT2);
+		pos_in_block = (curr_entry % part.dirs_in_block)*sizeof(DENTRY2);
 				
-		memcpy((void*)&dummyDentry, (void*)&block_buffer[pos_in_block], sizeof(DIRENT2));
+		memcpy((void*)&dummyDentry, (void*)&block_buffer[pos_in_block], sizeof(DENTRY2));
 		
 		if (dummyDentry.TypeVal == 0x0) {
-			memcpy((void*)&block_buffer[pos_in_block], (void*)&dentry, sizeof(DIRENT2));
+			memcpy((void*)&block_buffer[pos_in_block], (void*)&dentry, sizeof(DENTRY2));
 			
 			if (write_block(block_buffer, block_id)) {
 				free_block_buffer(block_buffer);
@@ -2312,7 +2337,7 @@ int write_to_invalid_dentry_in_dir(DIRENT2 dentry) {
 	return -1;
 }
 
-int write_dentry_to_dir(DIRENT2 dentry) {
+int write_dentry_to_dir(DENTRY2 dentry) {
 	if (!is_mounted()) return -1;
 	
 	unsigned int dir_size_bytes = thedir->inode.bytesFileSize;
@@ -2322,7 +2347,7 @@ int write_dentry_to_dir(DIRENT2 dentry) {
 	unsigned int bid;
 
 	INODE2* inode = &(thedir->inode);
-	if (dir_size_bytes < part.max_dentries*sizeof(DIRENT2)) { // Append
+	if (dir_size_bytes < part.max_dentries*sizeof(DENTRY2)) { // Append
 		BLOCKBUFFER buffer = new_block_buffer();
 		if (!buffer) return -1;
 		
@@ -2332,7 +2357,7 @@ int write_dentry_to_dir(DIRENT2 dentry) {
 				return -1;
 			}
 			
-			memcpy((void*)&buffer[dir_size_bytes % (spb->blockSize*SECTOR_SIZE)], (void*)&dentry, sizeof(DIRENT2));
+			memcpy((void*)&buffer[dir_size_bytes % (spb->blockSize*SECTOR_SIZE)], (void*)&dentry, sizeof(DENTRY2));
 
 			if (write_block(buffer, bid)) {
 				free_block_buffer(buffer);
@@ -2340,12 +2365,12 @@ int write_dentry_to_dir(DIRENT2 dentry) {
 			}
 			
 			free_block_buffer(buffer);
-			inode->bytesFileSize = thedir->inode.bytesFileSize + sizeof(DIRENT2);
+			inode->bytesFileSize = thedir->inode.bytesFileSize + sizeof(DENTRY2);
 
 			return 0;
 						
 		} else { // In New Block
-			memcpy((void*)buffer, (void*)&dentry, sizeof(DIRENT2));
+			memcpy((void*)buffer, (void*)&dentry, sizeof(DENTRY2));
 			if (append_block_to_inode(&(thedir->inode), buffer)) {
 				free_block_buffer(buffer);
 				return -1;
@@ -2353,7 +2378,7 @@ int write_dentry_to_dir(DIRENT2 dentry) {
 			
 			free_block_buffer(buffer);
 			
-			inode->bytesFileSize += sizeof(DIRENT2);
+			inode->bytesFileSize += sizeof(DENTRY2);
 			return 0;
 			
 		}
@@ -2367,9 +2392,9 @@ int write_dentry_to_dir(DIRENT2 dentry) {
 	return -1;
 }
 
-int is_symlink(const char* filename) {
+int is_symlink(char* filename) {
 	/* Check if file is symlink */
-	DIRENT2 dentry;
+	DENTRY2 dentry;
 	int dentry_block, dentry_pos;
 
 	search_file_in_dir(filename, &dentry, &dentry_block, &dentry_pos);
@@ -2380,11 +2405,12 @@ int is_symlink(const char* filename) {
 		return 0;
 }
 
-int fetch_symlink(const char* filename, char** real_filename) {
-	DIRENT2 dentry;
+int fetch_symlink(char* filename, char** real_filename) {
+	DENTRY2 dentry;
 	INODE2 inode;
 	BLOCKBUFFER buf = new_block_buffer();
-	int dentry_block, dentry_pos, block_id;
+	int dentry_block, dentry_pos;
+	DWORD block_id;
 	const size_t nameSize = 51;
 
 	if(search_file_in_dir(filename, &dentry, &dentry_block, &dentry_pos)) {

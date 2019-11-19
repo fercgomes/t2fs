@@ -7,9 +7,9 @@ int localize_freeinode(); // Retorna negativo se erro, zero se não achou ou o I
 int allocate_inode(int id);
 unsigned int inodeid_to_sector(int id);
 unsigned int inodeid_in_sector(int id);
-int write_new_inode(DIRENT2* dentry);
-int write_inode(DIRENT2 dentry, INODE2 inode);
-int load_inode(DIRENT2 dentry, INODE2* inode);
+int write_new_inode(DENTRY2* dentry);
+int write_inode(DENTRY2 dentry, INODE2 inode);
+int load_inode(DENTRY2 dentry, INODE2* inode);
 int delete_inode(INODE2* inode);
 
 int main() {
@@ -39,7 +39,7 @@ int main() {
 		return -1;
 	}
 	
-	DIRENT2 fakedentry[700];
+	DENTRY2 fakedentry[700];
 	int max_inodes = 639;
 	int i;
 	int res;
@@ -50,7 +50,7 @@ int main() {
 	}
 	
 	INODE2 dummyinode;
-	DIRENT2 invaliddentry;
+	DENTRY2 invaliddentry;
 	invaliddentry.inodeNumber = 6;
 	printf("Loading missing inode: %s\n", load_inode(invaliddentry, &dummyinode) ? "OK" : "NOT OK");
 	printf("Loading real inode: %s\n", load_inode(fakedentry[3], &dummyinode) ? "NOT OK" : "OK");
