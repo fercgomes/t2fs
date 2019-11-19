@@ -1122,7 +1122,7 @@ int sln2 (char *linkname, char *filename) {
 		return -1;
 	}
 	
-	DIRENT2 dentry;
+	DENTRY2 dentry;
 	INODE2 inode;
 	int dt_block;
 	int dt_pos;
