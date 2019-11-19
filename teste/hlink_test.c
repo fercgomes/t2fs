@@ -39,8 +39,10 @@ int main() {
 
 	printf("Deleting original file %s\n", delete2("target") ? "NOT OK" : "OK");
 
-	printf("Opening hlink: %s\n" (fp = open2("link")) < 0 ? "NOT OK" : "OK");
-	strcmp(test_buffer2, "ASDYHBKJHNAMKDAHNJS");
+	printf("Opening hlink: %s\n", (fp = open2("link")) < 0 ? "NOT OK" : "OK");
+	
+	strcpy(test_buffer2, "ASDYHBKJHNAMKDAHNJS");
+	
 	printf("Reading from hlin: %s\n", read2(fp, test_buffer2, 100) == 100 ? "OK" : "NOT OK");
 	printf("Data from hlink read: %s\n", strcmp(test_buffer, test_buffer2) == 0 ? "OK" : "NOT OK");
 
@@ -50,7 +52,7 @@ int main() {
 
 	printf("Trying to open deleted link: %s\n", (fp = open2("link")) < 0 ? "OK" : "NOT OK");
 
-	while(!readdir2(&dentry)) {
+	while(!readdir2(&dirent)) {
 		printf("====================\n");
 		printf("Name: %s\n", dirent.name);
 		printf("Size: %d\n", dirent.fileSize);

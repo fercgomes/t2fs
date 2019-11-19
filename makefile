@@ -13,7 +13,7 @@ LIB_DIR=./lib
 INC_DIR=./include
 BIN_DIR=./bin
 SRC_DIR=./src
-TEST_DIR=./tests
+TEST_DIR=./teste
 
 SRC_FILES = $(wildcard $(SRC_DIR)/*.c)
 OBJECTS = $(patsubst %.c,%.o,$(wildcard $(SRC_DIR)/*.c))
