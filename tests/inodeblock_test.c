@@ -8,9 +8,9 @@ int allocate_inode(int id); // Retorna zero se sucesso, outro número se fracass
 int deallocate_inode(int id); // Retorna zero se sucesso, outro número se fracasso (erro ao desalocar inode não alocado) - Usar na delete_inode
 unsigned int inodeid_to_sector(int id); // Retorna o número do setor (RELATIVO A A PARTIÇÃO) do inode (NAO USAR)
 unsigned int inodeid_in_sector(int id); // Retorna o a posição do inode internamente ao setor (em ID, não em bytes) (NAO USAR)
-int write_new_inode(DIRENT2* dentry); // Cria um inodo vazio e adiciona ao dentry. Retorna 0 se sucesso e outro número se falha. - Usada na criação de arquivo inexistente.
-int write_inode(DIRENT2 dentry, INODE2 inode); // Escreve inode no disco. Retorna 0 se sucesso e outro número se falha. - Usada na atualização de arquivo (OU "CRIAR" ARQUIVO EXISTENTE)
-int load_inode(DIRENT2 dentry, INODE2* inode); // Carrega um inode do disco. Retorna 0 se sucesso e outro número se falha. - Usada na função de ler/escrever arquivo
+int write_new_inode(DENTRY2* dentry); // Cria um inodo vazio e adiciona ao dentry. Retorna 0 se sucesso e outro número se falha. - Usada na criação de arquivo inexistente.
+int write_inode(DENTRY2 dentry, INODE2 inode); // Escreve inode no disco. Retorna 0 se sucesso e outro número se falha. - Usada na atualização de arquivo (OU "CRIAR" ARQUIVO EXISTENTE)
+int load_inode(DENTRY2 dentry, INODE2* inode); // Carrega um inode do disco. Retorna 0 se sucesso e outro número se falha. - Usada na função de ler/escrever arquivo
 
 int localize_freeblock(); // Retorna negativo se erro, zero se não achou ou o ID do bloco (positivo)
 int allocate_freeblock(int id); // Retorna negativo se erro, zero se não achou ou o ID do bloco (positivo)
@@ -35,9 +35,9 @@ int load_block_in_db_indir(int indir_block_id, BLOCKBUFFER buffer, int block_pos
 int load_inode_block(INODE2 inode, BLOCKBUFFER block_buffer, unsigned int block_pos, unsigned int* block_id); // Carrega um dado bloco do inode. Retorna zero se sucesso, outro número se falha. - Usada para reads
 
 int remove_inode_content(INODE2* inode); // Remove todo o conteúdo do i-node, mantendo número de referências. Retorna zero se sucesso, outro número se falha - Usada na create
-int new_dentry(DIRENT2* dentry); // Cria um dentry inválido, de nome vazio e de com um i-node vazio. Retorna zero se sucesso, outro número se falha - Usada na create 
-int empty_dentry(DIRENT2* dentry); // Esvazia um dentry e seta inodeNumber para maior que o máximo da partição (NAO REMOVE INODE). Retorna zero se sucesso, outro número se falha. (NAO USAR)
-int delete_dentry(DIRENT2* dentry); // Remove o conteúdo e i-node de um dentry, invalidando-o. Retorna zero se sucesso, outro número se falha. - Usada na delete
+int new_dentry(DENTRY2* dentry); // Cria um dentry inválido, de nome vazio e de com um i-node vazio. Retorna zero se sucesso, outro número se falha - Usada na create 
+int empty_dentry(DENTRY2* dentry); // Esvazia um dentry e seta inodeNumber para maior que o máximo da partição (NAO REMOVE INODE). Retorna zero se sucesso, outro número se falha. (NAO USAR)
+int delete_dentry(DENTRY2* dentry); // Remove o conteúdo e i-node de um dentry, invalidando-o. Retorna zero se sucesso, outro número se falha. - Usada na delete
 
 typedef struct s_partition PARTITION;
 extern PARTITION part;
@@ -167,7 +167,7 @@ int main() {
 	}
 	
 	printf("\n\n");
-	DIRENT2 dentry;
+	DENTRY2 dentry;
 	INODE2 inode;
 	if(write_new_inode(&dentry)) printf("Failed creating inode: NOT OK\n");
 	if(load_inode(dentry, &inode)) printf("Failed loading inode: NOT OK\n");
@@ -321,7 +321,7 @@ int main() {
 		return -1;
 	}
 
-	DIRENT2 dummyDentry;
+	DENTRY2 dummyDentry;
 	if (empty_dentry(&dentry)) printf("Error: failed to create empty dentry. NOT OK\n");
 	
 	printf("New dentry test: %s\n", new_dentry(&dentry) == 0 ? "OK" : "NOT OK");
