@@ -16,7 +16,7 @@ int main() {
 		return -1;
 	}
 	
-	int max_files = part.max_dentries;
+	int max_files = part.max_files_open;
 	
 	char filenames[max_files][51];
 	char notwritten[51];
@@ -32,8 +32,7 @@ int main() {
 		fHandler[i] = create2(filenames[i]);
 		printf("Creating file %d: FID %d %s\n", i, fHandler[i], fHandler[i] >= 0 ? "OK" : "NOT OK");
 	}
-	FILE2 filenotwritten = create2(notwritten);
-	printf("Creating file withouth space: %s\n", filenotwritten < 0 ? "OK" : "NOT OK");
+	
 	printf("Closing file: %s\n", close2(fHandler[i-1]) == 0 ? "OK" : "NOT OK");
 	fHandler[i-1] = create2(filenames[i-1]);
 	printf("Creating file already written: %s\n", fHandler[i-1] >= 0 ? "OK" : "NOT OK");

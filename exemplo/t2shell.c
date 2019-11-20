@@ -27,7 +27,6 @@ void cmdClose(void);
 void cmdWrite(void);
 void cmdCreate(void);
 void cmdDelete(void);
-void cmdSeek(void);
 void cmdTrunc(void);
 
 void cmdLn(void);
@@ -108,7 +107,6 @@ struct {
 	{ "write", helpWrite, cmdWrite }, { "wr", helpWrite, cmdWrite },
 	{ "create", helpCreate, cmdCreate }, { "cr", helpCreate, cmdCreate },
 	{ "delete", helpDelete, cmdDelete }, { "del", helpDelete, cmdDelete },
-	{ "seek", helpSeek, cmdSeek }, { "sk", helpSeek, cmdSeek },
 	{ "truncate", helpTrunc, cmdTrunc }, { "trunc", helpTrunc, cmdTrunc }, { "tk", helpTrunc, cmdTrunc },
 	
 	{ "ln", helpLn, cmdLn },
@@ -229,13 +227,6 @@ void tst_seek(char *src, int seek_pos) {
         return;
     }
 	
-    err = seek2(hSrc, seek_pos);
-    if (err<0) {
-        printf ("Error: Seek %s (handle=%d), err=%d\n", src, hSrc, err);
-		close2(hSrc);
-        return;
-    }
-	
     err = read2(hSrc, buffer, 256);
     if (err<0) {
         printf ("Error: Read %s (handle=%d), err=%d\n", src, hSrc, err);
@@ -306,42 +297,6 @@ void tst_write(char *src, char *texto) {
 	
 }
 
-void tst_truncate(char *src, int size) {
-    FILE2 handle;
-	int err;
-
-	printf ("Teste do truncate2()\n");
-	
-    handle = open2(src);
-    if (handle<0) {
-        printf ("Erro: Open %s, handle=%d\n", src, handle);
-        return;
-    }
-	
-    // posiciona CP na posicao selecionada
-    err = seek2(handle, size);
-    if (err<0) {
-        printf ("Error: Seek %s, handle=%d, pos=%d, err=%d\n", src, handle, size, err);
-		close2(handle);
-        return;
-    }
-    
-    // trunca
-    err = truncate2(handle);
-    if (err<0) {
-        printf ("Error: Truncate %s, handle=%d, pos=%d, err=%d\n", src, handle, size, err);
-		close2(handle);
-        return;
-    }
-	
-	if (close2(handle)) {
-        printf ("Erro: Close (handle=%d)\n", handle);
-        return;
-	}
-	
-	printf ("Ok!\n\n");
-}
-
 void tst_delete(char *src) {
     int err;
 	
@@ -356,9 +311,6 @@ void tst_delete(char *src) {
 	printf ("Ok!\n\n");
 	
 }
-
-
-
 
 void teste(int tstNumber) {
 	if (tstNumber<0) {
@@ -401,7 +353,6 @@ void teste(int tstNumber) {
 			tst_read("y.txt");		// Verificação
 			break;
 		case 8:
-			tst_truncate("y.txt", 11);
 			tst_read("y.txt");		// Verificação
 			break;
 		case 9:
@@ -798,8 +749,6 @@ void cmdRead(void) {
 
 void cmdLn(void) {
 	char *linkname;
-	int err;
-
     // get first parameter => link name
     char *token = strtok(NULL," \t");
     if (token==NULL) {
@@ -812,13 +761,6 @@ void cmdLn(void) {
     token = strtok(NULL," \t");
     if (token==NULL) {
         printf ("Missing parameter PATHNAME\n");
-        return;
-    }
-
-	// make link
-    err = ln2 (linkname, token);
-    if (err!=0) {
-        printf ("Error: %d\n", err);
         return;
     }
 
@@ -916,20 +858,6 @@ void cmdTrunc(void) {
         return;
     }
     
-    // posiciona CP na posicao selecionada
-    int err = seek2(handle, size);
-    if (err<0) {
-        printf ("Error seek2: %d\n", err);
-        return;
-    }
-    
-    // trunca
-    err = truncate2(handle);
-    if (err<0) {
-        printf ("Error truncate2: %d\n", err);
-        return;
-    }
-
     // show bytes read
     printf ("file-handle %d truncated to %d bytes\n", handle, size );
 }

@@ -120,7 +120,8 @@ void print_superblock(SUPERBLOCK spb);  // Defined at utils.h
 Função:	Informa a identificação dos desenvolvedores do T2FS.
 -----------------------------------------------------------------------------*/
 int identify2 (char *name, int size) {
-	return -1;
+	strncpy(name, "Fernando C Gomes - Iron P Silva 231590 - Nicolau P Alff \n", size);
+	return 0;
 }
 
 /*-----------------------------------------------------------------------------
@@ -354,6 +355,8 @@ int mount(int partition) {
 	part.max_dentries = 2 + part.dirs_in_block + part.dirs_in_block*part.dirs_in_block;
 	part.max_blocks_in_inode = 2 + part.blockids_in_block + part.blockids_in_block*part.blockids_in_block;
 	part.dir_open = 0;
+	part.files_open = 0;
+	part.max_files_open = 10;
 	return 0;
 }
 
@@ -451,6 +454,7 @@ FILE2 create2 (char *filename) {
 		return -1;
 	}
 	
+	printf("New file created: %s\n", _filename);
 	return open2((char*)_filename);
 }
 
@@ -521,6 +525,11 @@ Função:	Função que abre um arquivo existente no disco.
 FILE2 open2 (char *filename) {
 	if (!is_mounted()) {
 		printf("Must have a partition mounted before operating a file.\n");
+		return -1;
+	}
+	
+	if (part.files_open > part.max_files_open) {
+		printf("Maximum number of opened files reached. Aborting\n");
 		return -1;
 	}
 	
@@ -604,6 +613,8 @@ FILE2 open2 (char *filename) {
 		free(swofl_e2);
 		return -1;
 	}
+	
+	part.files_open++;
 	return pwofl_e->id;
 }
 
@@ -627,6 +638,7 @@ int close2 (FILE2 handle) {
 		return -1;
 	}
 
+	part.files_open--;
 	return 0;
 }
 
