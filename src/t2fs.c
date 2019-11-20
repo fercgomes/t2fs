@@ -2462,7 +2462,11 @@ int write_dentry_to_dir(DENTRY2 dentry) {
 			
 			free_block_buffer(buffer);
 			inode->bytesFileSize = thedir->inode.bytesFileSize + sizeof(DENTRY2);
-
+			
+			DENTRY2 dentrydir;
+			dentrydir.inodeNumber = 0;
+			if (write_inode(dentrydir, thedir->inode)) return -1;
+			
 			return 0;
 						
 		} else { // In New Block
@@ -2475,6 +2479,11 @@ int write_dentry_to_dir(DENTRY2 dentry) {
 			free_block_buffer(buffer);
 			
 			inode->bytesFileSize += sizeof(DENTRY2);
+			
+			DENTRY2 dentrydir;
+			dentrydir.inodeNumber = 0;
+			if (write_inode(dentrydir, thedir->inode)) return -1;
+			
 			return 0;
 			
 		}
