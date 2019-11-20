@@ -25,6 +25,7 @@ run:
 	printf "===OPEN+CLOSE TEST BEGINS===\n"; ./openclose_test > ./teste/log/openclose_test.txt;\
 	printf "===WRITE+READ TEST BEGINS===\n"; ./writeread_test > ./teste/log/writeread_test.txt;\
 	printf "===HLINK TEST BEGINS===\n"; ./hlink_test > ./teste/log/hlink_test.txt;\
+	printf "===SLINK TEST BEGINS===\n"; ./sln_test > ./teste/log/sln_test.txt;\
 	printf "\nTESTS FINISHED\nCHECK THE LOGS AT teste/log\n";
 	
 compile:
@@ -42,6 +43,7 @@ compile:
 	@$(CC) $(CFLAGS) -I ../include/ -L ../lib/ openclose_test.c -lt2fs -o ../openclose_test -Wall
 	@$(CC) $(CFLAGS) -I ../include/ -L ../lib/ writeread_test.c -lt2fs -o ../writeread_test -Wall
 	@$(CC) $(CFLAGS) -I ../include/ -L ../lib/ hlink_test.c -lt2fs -o ../hlink_test -Wall
+	@$(CC) $(CFLAGS) -I ../include/ -L ../lib/ sln_test.c -lt2fs -o ../sln_test -Wall
 
 check:
 	@var=0;lines=($$(grep -iRl "NOT OK" ./log/));for x in $${lines[@]}; do if [ $$var = 0 ]; then printf "\nERRORS FOUND IN:\n"; fi; var=$$(($$var + 1)); printf "$$x\n"; done; if [ $$var = 0 ]; then printf "\nNO ERRORS WERE FOUND\nALL OK\n"; else printf "\nERRORS WERE FOUND\nCHECK THE LOGS AND CORRECT IT\n"; fi;

@@ -340,6 +340,8 @@ typedef struct s_partition {
 	unsigned int max_dentries;
 	unsigned int max_blocks_in_inode;
 	int dir_open;
+	int files_open;
+	int max_files_open;
 } PARTITION;
 
 

@@ -16,7 +16,7 @@ int main() {
 		return -1;
 	}
 	
-	int max_files = part.max_dentries;
+	int max_files = part.max_files_open;
 	
 	char filenames[max_files][51];
 	char notwritten[51];
@@ -32,20 +32,19 @@ int main() {
 		fHandler[i] = create2(filenames[i]);
 		printf("Creating file %d: FID %d %s\n", i, fHandler[i], fHandler[i] >= 0 ? "OK" : "NOT OK");
 	}
-	FILE2 filenotwritten = create2(notwritten);
-	printf("Creating file withouth space: %s\n", filenotwritten < 0 ? "OK" : "NOT OK");
 	
 	printf("Closing file: %s\n", close2(fHandler[i-1]) == 0 ? "OK" : "NOT OK");
 	fHandler[i-1] = create2(filenames[i-1]);
 	printf("Creating file already written: %s\n", fHandler[i-1] >= 0 ? "OK" : "NOT OK");
 	
+	int deleted_id = 6;
 	char deletedfile[51] = "6";
 	
-	printf("Closing file: %s\n", close2(fHandler[6]) == 0 ? "OK" : "NOT OK");
+	printf("Closing file: %s\n", close2(fHandler[deleted_id]) == 0 ? "OK" : "NOT OK");
 	printf("Deleting file %s: %s\n", deletedfile, delete2(deletedfile) == 0 ? "OK" : "NOT OK");
 	printf("\tDeleting file again: %s\n", delete2(deletedfile) != 0 ? "OK" : "NOT OK");
 	
-	fHandler[6] = create2(deletedfile);
+	fHandler[deleted_id] = create2(deletedfile);
 	printf("Recreating file %s: %s\n", deletedfile, fHandler[6]  >= 0 ? "OK" : "NOT OK"); 
 	
 	if (opendir2()) {
@@ -56,7 +55,16 @@ int main() {
 	i = 0;
 	DIRENT2 dummydentry;
 	while (!readdir2(&dummydentry)) {
-		printf("Dentry name: %s - Index: %d %s\n", filenames[i], i, strcmp(filenames[i], dummydentry.name) == 0 ? "OK" : "NOT OK");
+		if (i < deleted_id) {
+			printf("Dentry name: %s - Index: %s %s\n", filenames[i], dummydentry.name, strcmp(filenames[i], dummydentry.name) == 0 ? "OK" : "NOT OK");
+		} else {
+			if (i < max_files-1) {
+				printf("Dentry name: %s - Index: %s %s\n", filenames[i+1], dummydentry.name, strcmp(filenames[i+1], dummydentry.name) == 0 ? "OK" : "NOT OK");
+			} else {
+				printf("Dentry name: %s - Index: %s %s\n", filenames[deleted_id], dummydentry.name, strcmp(filenames[deleted_id], dummydentry.name) == 0 ? "OK" : "NOT OK");
+			}
+		}			
+		
 		i++;
 	}
 	

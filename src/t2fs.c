@@ -108,9 +108,7 @@ int is_symlink(char* filename);
 	Busca o nome do arquivo ao qual o symlink com nome 'filename' aponta.
 	Escreve o nome do arquivo em 'real_filename'.
 */
-int fetch_symlink(char* filename, char** real_filename);
-
-inline void swap_filename(char* a, char* b) { char* tmp; tmp = a; a = b; b = tmp; }
+int fetch_symlink(char* filename, char* real_filename);
 
 /*------------------ FORWARD DECLARATIONS --------*/
 void print_superblock(SUPERBLOCK spb);  // Defined at utils.h
@@ -122,7 +120,8 @@ void print_superblock(SUPERBLOCK spb);  // Defined at utils.h
 Função:	Informa a identificação dos desenvolvedores do T2FS.
 -----------------------------------------------------------------------------*/
 int identify2 (char *name, int size) {
-	return -1;
+	strncpy(name, "Fernando C Gomes - Iron P Silva 231590 - Nicolau P Alff \n", size);
+	return 0;
 }
 
 /*-----------------------------------------------------------------------------
@@ -356,6 +355,8 @@ int mount(int partition) {
 	part.max_dentries = 2 + part.dirs_in_block + part.dirs_in_block*part.dirs_in_block;
 	part.max_blocks_in_inode = 2 + part.blockids_in_block + part.blockids_in_block*part.blockids_in_block;
 	part.dir_open = 0;
+	part.files_open = 0;
+	part.max_files_open = 10;
 	return 0;
 }
 
@@ -453,6 +454,7 @@ FILE2 create2 (char *filename) {
 		return -1;
 	}
 	
+	printf("New file created: %s\n", _filename);
 	return open2((char*)_filename);
 }
 
@@ -526,24 +528,27 @@ FILE2 open2 (char *filename) {
 		return -1;
 	}
 	
+	if (part.files_open > part.max_files_open) {
+		printf("Maximum number of opened files reached. Aborting\n");
+		return -1;
+	}
+	
 	BYTE _filename[51];
 	if(check_filename(_filename, (BYTE*)filename)) {
 		printf("The filename provided is invalid\n");
 		return -1;
 	}
 
-	#ifdef SYMLINK_IMPLEMENTED
-	char* real_filename = (char*)malloc(51);
-	if(is_symlink(_filename)) {
+	BYTE real_filename[51];
+	if(is_symlink((char*)_filename)) {
 		/* File is symlink, fetch real filename */
-		if(fetch_symlink(_filename, &real_filename)) {
-			printf("open2: error fetching symlink.\n");
+		if(fetch_symlink((char*)_filename, (char*)real_filename)) {
+			printf("Error: Couldn't fetch symlink.\n");
 			return -1;
 		} else {
-			swap_filename(_filename, real_filename);
+			memcpy((void*)_filename, (void*)real_filename, 51);
 		}
 	}
-	#endif
 	
 	SWOFL_ENTRY* swofl_e = NULL;
 	PWOFL_ENTRY* pwofl_e = malloc(sizeof(PWOFL_ENTRY));
@@ -608,6 +613,8 @@ FILE2 open2 (char *filename) {
 		free(swofl_e2);
 		return -1;
 	}
+	
+	part.files_open++;
 	return pwofl_e->id;
 }
 
@@ -631,6 +638,7 @@ int close2 (FILE2 handle) {
 		return -1;
 	}
 
+	part.files_open--;
 	return 0;
 }
 
@@ -1102,7 +1110,92 @@ int closedir2 (void) {
 Função:	Função usada para criar um caminho alternativo (softlink)
 -----------------------------------------------------------------------------*/
 int sln2 (char *linkname, char *filename) {
-	return -1;
+	const size_t nameSize = 51;
+
+	if (!is_mounted()) {
+		printf("Must have a partition mounted before operating a file.\n");
+		return -1;
+	}
+	
+	// Check if the filename is valid
+	BYTE _filename[51];
+	if(check_filename(_filename, (BYTE*)filename)) {
+		printf("The filename provided is invalid\n");
+		return -1;
+	}
+	// Check if the linkname is valid	
+	BYTE _linkname[51];
+	if(check_filename(_linkname, (BYTE*)linkname)) {
+		printf("The linkname provided is invalid\n");
+		return -1;
+	}
+	
+	DENTRY2 dentry;
+	INODE2 inode;
+	int dt_block;
+	int dt_pos;
+	
+	if (!search_file_in_dir((char*)_linkname, &dentry, &dt_block, &dt_pos)) {
+		printf("A file with this linkname already exists\n");
+		return -1;
+	}
+	
+	if (search_file_in_dir((char*)_filename, &dentry, &dt_block, &dt_pos)) {
+		printf("Couldn't find a file with the given name: %s\n", _filename);
+		return -1;
+	}
+	
+	if (new_dentry(&dentry)) {
+		printf("Unexpected Error occurred at sln2: SLCNDTR\n\tCouldn't create the symbolic link\n");
+		return -1;
+	}
+	
+	memcpy((void*)dentry.name, (void*)_linkname, 51);
+	dentry.TypeVal = 0x02;
+	
+	// Allocate an i-node and a Free Block. Use predefined functions! Or create them!
+
+	if (write_new_inode(&dentry)) {
+		printf("Couldn't allocate a new inode\n");
+		return -1;
+	}
+
+	if (load_inode(dentry, &inode)) {
+		printf("Unexpected Error occurred at sln2: SLLDIND\n\t Couldn't create the symbolic link\n");
+		return -1;
+	}
+	
+	BLOCKBUFFER bbuffer = new_block_buffer();
+	
+	//Fill the allocated block with the string containing the file direction. The "/file" string, not a pointer to the i-node!
+	memcpy((void*)bbuffer, (void*)_filename, nameSize);
+	
+	//Fill i-node with the necessary info. Use predefined functions! Or create them!
+	if(append_block_to_inode(&inode, bbuffer)) {
+		printf("Unexpected Error at sln2: SLAPBIND\n\t Couldn't create the symbolic link\n");
+		free_block_buffer(bbuffer);
+		return -1;
+	}
+	
+	inode.bytesFileSize = 51;
+	
+	if (write_inode(dentry, inode)) {
+		printf("Unexpected Error at sln2: SLWRTIND\n\t Couldn't create the symbolic link\n");
+		free_block_buffer(bbuffer);
+		return -1;
+	}
+	
+	//Create a dentry and add it to THE Directory. Create a function for this SL dentry creation!
+	
+	if (write_dentry_to_dir(dentry)) {
+		printf("Error creating symbolic link. Is the directory full?\n");
+		free_block_buffer(bbuffer);
+		return -1;
+	}
+		
+	//Return Success.
+	free_block_buffer(bbuffer);
+	return 0;
 }
 
 /*-----------------------------------------------------------------------------
@@ -1154,7 +1247,7 @@ int hln2(char *linkname, char *filename) {
 
 		/* Load target inode */
 		if (load_inode(dentry, &inode)) {
-			printf("Unexpected Error occurred at hlink: CLDIND\n\tCouldn't create the file\n");
+			printf("Unexpected Error occurred at hln2: HLCLDIND\n\tCouldn't create the hard link\n");
 			return -1;
 		}
 
@@ -1162,11 +1255,14 @@ int hln2(char *linkname, char *filename) {
 		inode.RefCounter++;
 
 		/* Save inode */
-		write_inode(dentry, inode);
+		if (write_inode(dentry, inode) ) {
+			printf("Unexpected Error occurred at hln2: HLWTIND\n\tCouldn't create the hard link\n");
+			return -1;
+		}
 
 		/* Create new dentry */
 		if (new_dentry(&dentry)) {
-			printf("Unexpected Error occurred at hlin: CNDTR\n\tCouldn't create the file\n");
+			printf("Unexpected Error occurred at hln2: HLCNDTR\n\tCouldn't create the hard link\n");
 			return -1;
 		}
 		
@@ -1176,7 +1272,7 @@ int hln2(char *linkname, char *filename) {
 		dentry.inodeNumber = target_inode;
 		
 		if (write_dentry_to_dir(dentry)) {
-			printf("Error creating file. Is the directory full?\n");
+			printf("Error creating hard link. Is the directory full?\n");
 			return -1;
 		}
 
@@ -2405,7 +2501,7 @@ int is_symlink(char* filename) {
 		return 0;
 }
 
-int fetch_symlink(char* filename, char** real_filename) {
+int fetch_symlink(char* filename, char* real_filename) {
 	DENTRY2 dentry;
 	INODE2 inode;
 	BLOCKBUFFER buf = new_block_buffer();
@@ -2414,24 +2510,21 @@ int fetch_symlink(char* filename, char** real_filename) {
 	const size_t nameSize = 51;
 
 	if(search_file_in_dir(filename, &dentry, &dentry_block, &dentry_pos)) {
-		printf("fetch_symlink: error while searching for file.\n");
 		free_block_buffer(buf);
 		return -1;
 	}
 
 	if(load_inode(dentry, &inode)) {
-		printf("fetch_symlink: error while loading inode.\n");
 		free_block_buffer(buf);
 		return -1;
 	}
 
 	if(load_inode_block(inode, buf, 0, &block_id)) {
-		printf("fetch_symlink: error while loading inode block.\n");
 		free_block_buffer(buf);
 		return -1;
 	}
 
-	memcpy((void*)*real_filename, (void*)buf, nameSize);
+	memcpy((void*)real_filename, (void*)buf, nameSize);
 
 	free_block_buffer(buf);
 
