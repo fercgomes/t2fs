@@ -120,7 +120,7 @@ void print_superblock(SUPERBLOCK spb);  // Defined at utils.h
 Função:	Informa a identificação dos desenvolvedores do T2FS.
 -----------------------------------------------------------------------------*/
 int identify2 (char *name, int size) {
-	strncpy(name, "Fernando C Gomes - Iron P Silva 231590 - Nicolau P Alff \n", size);
+	strncpy(name, "Fernando C Gomes 264317 - Iron P Silva 231590 - Nicolau P Alff \n", size);
 	return 0;
 }
 
