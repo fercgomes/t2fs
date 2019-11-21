@@ -352,7 +352,8 @@ int mount(int partition) {
 	part.bytes_in_block = spb->blockSize * SECTOR_SIZE;
 	part.blockids_in_block = part.bytes_in_block/sizeof(DWORD);
 	part.dirs_in_block = part.bytes_in_block/sizeof(DENTRY2); // The correct would be dentry, not dir. Too much work to correct
-	part.max_dentries = 2 + part.dirs_in_block + part.dirs_in_block*part.dirs_in_block;
+	part.max_dentries = (2 + part.blockids_in_block + part.blockids_in_block*part.blockids_in_block)*part.dirs_in_block;
+	part.max_dentries = part.max_dentries > part.max_inode_id ? part.max_inode_id : part.max_dentries;
 	part.max_blocks_in_inode = 2 + part.blockids_in_block + part.blockids_in_block*part.blockids_in_block;
 	part.dir_open = 0;
 	part.files_open = 0;
@@ -1937,7 +1938,7 @@ int block_single_indir_position(int block_pos) {
 int block_double_indir_position(int block_pos) {
 	if (!is_mounted()) return -1;
 	int res = block_pos/part.blockids_in_block;
-
+	
 	if (res >= part.blockids_in_block) return -1;
 	
 	return res;

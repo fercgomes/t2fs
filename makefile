@@ -42,4 +42,4 @@ tests: t2fs
 	
 pack:
 	@echo "Preparando para entrega..."
-	tar -zcvf $(MOODLE_NAME) bin/ exemplos/ include/ lib/ src/ makefile t2fs_disk.dat
+	tar -zcvf $(MOODLE_NAME) bin/ exemplo/ include/ lib/ src/ makefile t2fs_disk.dat
