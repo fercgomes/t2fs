@@ -120,7 +120,7 @@ void print_superblock(SUPERBLOCK spb);  // Defined at utils.h
 Função:	Informa a identificação dos desenvolvedores do T2FS.
 -----------------------------------------------------------------------------*/
 int identify2 (char *name, int size) {
-	strncpy(name, "Fernando C Gomes - Iron P Silva 231590 - Nicolau P Alff \n", size);
+	strncpy(name, "Fernando C Gomes 264317 - Iron P Silva 231590 - Nicolau P Alff 243667\n", size);
 	return 0;
 }
 
@@ -2463,7 +2463,11 @@ int write_dentry_to_dir(DENTRY2 dentry) {
 			
 			free_block_buffer(buffer);
 			inode->bytesFileSize = thedir->inode.bytesFileSize + sizeof(DENTRY2);
-
+			
+			DENTRY2 dentrydir;
+			dentrydir.inodeNumber = 0;
+			if (write_inode(dentrydir, thedir->inode)) return -1;
+			
 			return 0;
 						
 		} else { // In New Block
@@ -2476,6 +2480,11 @@ int write_dentry_to_dir(DENTRY2 dentry) {
 			free_block_buffer(buffer);
 			
 			inode->bytesFileSize += sizeof(DENTRY2);
+			
+			DENTRY2 dentrydir;
+			dentrydir.inodeNumber = 0;
+			if (write_inode(dentrydir, thedir->inode)) return -1;
+			
 			return 0;
 			
 		}

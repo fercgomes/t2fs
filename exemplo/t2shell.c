@@ -14,6 +14,8 @@
 void cmdMan(void);
 
 void cmdFormat(void);
+void cmdMount(void);
+void cmdUmount(void);
 
 void cmdWho(void);
 void cmdLs(void);
@@ -27,7 +29,6 @@ void cmdClose(void);
 void cmdWrite(void);
 void cmdCreate(void);
 void cmdDelete(void);
-void cmdTrunc(void);
 
 void cmdLn(void);
 
@@ -65,22 +66,22 @@ static void dump(char *buffer, int size) {
 
 
 
-char helpExit[]  = "             -> finish this shell";
-char helpMan[]   = "[comando]    -> command help";
-char helpWho[]   = "             -> shows T2FS authors";
-char helpLs[]    = "[pahname]    -> list files in [pathname]";
-char helpMkdir[] = "[dirname]    -> create [dirname] in T2FS";
-char helpRmdir[] = "[dirname]    -> deletes [dirname] from T2FS";
-char helpOpen[]  = "[file]       -> open [file] from T2FS";
-char helpRead[]  = "[hdl] [siz]  -> read [siz] bytes from file [hdl]";
-char helpClose[] = "[hdl         -> close [hdl]";
-char helpWrite[] = "[hdl] [str]  -> write [str] bytes to file [hdl]";
-char helpCreate[]= "[file]       -> create new [file] in T2FS";
-char helpDelete[]= "[file]       -> deletes [file] from T2FS";
-char helpSeek[]  = "[hdl] [pos]  -> set CP of [hdl] file on [pos]";
-char helpTrunc[] = "[hdl] [siz]  -> truncate file [hdl] to [siz] bytes";
+char helpExit[]  = "              -> finish this shell";
+char helpMan[]   = "[comando]     -> command help";
+char helpWho[]   = "              -> shows T2FS authors";
+char helpLs[]    = "[pahname]     -> list files in [pathname]";
+char helpMkdir[] = "[dirname]     -> create [dirname] in T2FS";
+char helpRmdir[] = "[dirname]     -> deletes [dirname] from T2FS";
+char helpOpen[]  = "[file]        -> open [file] from T2FS";
+char helpRead[]  = "[hdl] [siz]   -> read [siz] bytes from file [hdl]";
+char helpClose[] = "[hdl          -> close [hdl]";
+char helpWrite[] = "[hdl] [str]   -> write [str] bytes to file [hdl]";
+char helpCreate[]= "[file]        -> create new [file] in T2FS";
+char helpDelete[]= "[file]        -> deletes [file] from T2FS";
+char helpUmount[]  = "            -> unmounts the mounted partition";
+char helpMount[] = "[part]        -> truncate file [hdl] to [siz] bytes";
 char helpLn[]     = "[lnk] [file] -> create link [lnk] to [file]";
-char helpFormat[] = "[bs]         -> format virtual disk";
+char helpFormat[] = "[part] [bs]  -> format virtual disk";
 
 char helpCopy[]    = "[src] [dst]  -> copy files: [src] -> [dst]";
 char helpFscp[]	  =	"[src] [dst]  -> copy files: [src] -> [dst]"
@@ -107,7 +108,8 @@ struct {
 	{ "write", helpWrite, cmdWrite }, { "wr", helpWrite, cmdWrite },
 	{ "create", helpCreate, cmdCreate }, { "cr", helpCreate, cmdCreate },
 	{ "delete", helpDelete, cmdDelete }, { "del", helpDelete, cmdDelete },
-	{ "truncate", helpTrunc, cmdTrunc }, { "trunc", helpTrunc, cmdTrunc }, { "tk", helpTrunc, cmdTrunc },
+	{ "mount", helpMount, cmdMount }, {"mt", helpMount, cmdMount},
+	{ "umount", helpUmount, cmdUmount}, {"umt", helpUmount, cmdUmount},
 	
 	{ "ln", helpLn, cmdLn },
 	{ "format", helpFormat, cmdFormat },
@@ -446,19 +448,26 @@ void cmdMan(void) {
 Chama a função que formata o disco
 */
 void cmdFormat(void) {
+	int partition;
 	int sectors_per_block;
 	
-    char *token = strtok(NULL," \t");
+    char *token = strtok(NULL," ");
     if (token==NULL) {
-        printf ("Missing block size (in sectors)\n");
+        printf ("Missing values\n");
         return;
     }
+    
+    if (sscanf(token, "%d", &partition)==0) {
+        printf ("Invalid partition id\n");
+        return;
+    }
+    
     if (sscanf(token, "%d", &sectors_per_block)==0) {
         printf ("Invalid block size\n");
         return;
     }
 
-    int err = format2 (0, sectors_per_block);
+    int err = format2 (partition, sectors_per_block);
     if (err) {
         printf ("Error: %d\n", err);
         return;
@@ -467,6 +476,37 @@ void cmdFormat(void) {
     printf ("Disk formated\n");
 }
 
+void cmdMount(void) {
+	int partition_id;
+	
+    char *token = strtok(NULL," \t");
+    if (token==NULL) {
+        printf ("Missing Partition ID\n");
+        return;
+    }
+    if (sscanf(token, "%d", &partition_id)==0) {
+        printf ("Invalid Partition ID\n");
+        return;
+    }
+
+    int err = mount (partition_id);
+    if (err) {
+        printf ("Error: %d\n", err);
+        return;
+    }
+
+    printf ("Disk mounted\n");
+}
+
+void cmdUmount(void) {
+    int err = umount ();
+    if (err) {
+        printf ("Error: %d\n", err);
+        return;
+    }
+
+    printf ("Disk unmounted\n");
+}
 	
 /**
 Chama da função identify2 da biblioteca e coloca o string de retorno na tela
@@ -749,6 +789,7 @@ void cmdRead(void) {
 
 void cmdLn(void) {
 	char *linkname;
+	char* filename;
     // get first parameter => link name
     char *token = strtok(NULL," \t");
     if (token==NULL) {
@@ -763,8 +804,10 @@ void cmdLn(void) {
         printf ("Missing parameter PATHNAME\n");
         return;
     }
+	filename = token;
 
-    printf ("Created link %s to file %s\n", linkname, token);
+	if (sln2(linkname, filename)) printf("Couldn't create link %s to file %s\n", linkname, filename);
+	else printf ("Created link %s to file %s\n", linkname, filename);
 
 }
 
@@ -826,43 +869,6 @@ void cmdLs(void) {
     closedir2();
 
 
-}
-
-
-/**
-Chama a função truncate2() da biblioteca e coloca o string de retorno na tela
-*/
-void cmdTrunc(void) {
-    FILE2 handle;
-    int size;
-
-    // get first parameter => file handle
-    char *token = strtok(NULL," \t");
-    if (token==NULL) {
-        printf ("Missing parameter\n");
-        return;
-    }
-    if (sscanf(token, "%d", &handle)==0) {
-        printf ("Invalid parameter\n");
-        return;
-    }
-
-    // get second parameter => number of bytes
-    token = strtok(NULL," \t");
-    if (token==NULL) {
-        printf ("Missing parameter\n");
-        return;
-    }
-    if (sscanf(token, "%d", &size)==0) {
-        printf ("Invalid parameter\n");
-        return;
-    }
-    
-    // show bytes read
-    printf ("file-handle %d truncated to %d bytes\n", handle, size );
-}
-
-void cmdSeek(void) {
 }
 
 

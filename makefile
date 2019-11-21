@@ -24,7 +24,7 @@ MOODLE_NAME = entrega.tar.gz
 
 .PHONY: all t2fs pack tests
 
-all: t2fs
+all: clean t2fs
 
 t2fs: $(OBJECTS)
 	@ar crs $(TARGET) $(foreach var, $(OBJECTS), $(BIN_DIR)/$(notdir $(var))) $(LIB_DIR)/apidisk.o $(LIB_DIR)/bitmap2.o $(LIB_DIR)/support.o

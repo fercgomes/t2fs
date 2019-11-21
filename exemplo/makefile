@@ -9,7 +9,7 @@ compile:
 	@$(CC) $(CFLAGS) -I ../include/ -L ../lib/ t2shell.c -lt2fs -o ../t2shell -Wall
 
 run:
-	../t2shell
+	cd ..; ./t2shell
    
 clean:
 	rm ../t2shell
