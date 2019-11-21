@@ -18,6 +18,8 @@ int main() {
 	
 	int max_files = part.max_files_open;
 	
+	int activate_max_dentries_test = (max_files == part.max_dentries) ? 1 : 0;
+	
 	char filenames[max_files][51];
 	char notwritten[51];
 	sprintf(notwritten, "%d", max_files);
@@ -55,12 +57,12 @@ int main() {
 	i = 0;
 	DIRENT2 dummydentry;
 	while (!readdir2(&dummydentry)) {
-		if (i < deleted_id) {
+		if (i < deleted_id || activate_max_dentries_test) {
 			printf("Dentry name: %s - Index: %s %s\n", filenames[i], dummydentry.name, strcmp(filenames[i], dummydentry.name) == 0 ? "OK" : "NOT OK");
 		} else {
-			if (i < max_files-1) {
+			if (i < max_files-1 && !activate_max_dentries_test) {
 				printf("Dentry name: %s - Index: %s %s\n", filenames[i+1], dummydentry.name, strcmp(filenames[i+1], dummydentry.name) == 0 ? "OK" : "NOT OK");
-			} else {
+			} else if ( !activate_max_dentries_test ) {
 				printf("Dentry name: %s - Index: %s %s\n", filenames[deleted_id], dummydentry.name, strcmp(filenames[deleted_id], dummydentry.name) == 0 ? "OK" : "NOT OK");
 			}
 		}			
